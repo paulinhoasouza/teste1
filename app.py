@@ -7,7 +7,7 @@ from database.client import (
     usuario_atual,
     logout,
 )
-from pages.clientes import tela_clientes
+from views.clientes import tela_clientes
 
 st.set_page_config(
     page_title="Zetta | Gestão Comercial",
