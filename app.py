@@ -7,6 +7,7 @@ from database.client import (
     usuario_atual,
     logout,
 )
+from pages.clientes import tela_clientes
 
 st.set_page_config(
     page_title="Zetta | Gestão Comercial",
@@ -82,9 +83,7 @@ def dashboard():
 
 
 def clientes():
-    st.title("Gestão de Clientes")
-    st.write("Cadastro e gerenciamento de clientes.")
-    st.info("O cadastro funcional será implementado na Etapa 7.")
+    tela_clientes()
 
 
 def solicitacoes():
