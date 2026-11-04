@@ -22,6 +22,7 @@ jobs:
           set -euo pipefail
           base64 -d iptv-source.tar.gz.b64 | tar -xz
           test -f app/build.gradle.kts
+          sed -i -e "s/2026.09.00/2025.12.00/g" -e "s/activity-compose:1.13.0/activity-compose:1.11.0/g" -e "s/activity-ktx:1.13.0/activity-ktx:1.11.0/g" -e "s/2.11.0/2.9.4/g" -e "s/1.11.1/1.9.3/g" app/build.gradle.kts
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
