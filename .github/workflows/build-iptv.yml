@@ -1,0 +1,59 @@
+name: Build IPTV Player TV APK
+on:
+  push:
+    branches: [iptv-apk-build]
+    paths:
+      - 'iptv-source.tar.gz.b64'
+      - '.github/workflows/build-iptv.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Android source
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d iptv-source.tar.gz.b64 | tar -xz
+          test -f app/build.gradle.kts
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android platform
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Build debug APK
+        run: gradle --no-daemon --stacktrace :app:assembleDebug
+      - name: Check APK
+        run: |
+          set -euo pipefail
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          unzip -t app/build/outputs/apk/debug/app-debug.apk > /dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging app/build/outputs/apk/debug/app-debug.apk | tee apk-badging.txt
+          grep -q "package: name='com.example.iptvplayertv'" apk-badging.txt
+      - name: Publish standalone APK on build branch
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/IPTV-Player-TV-v0.5.0-debug.apk
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f dist/IPTV-Player-TV-v0.5.0-debug.apk
+          if ! git diff --cached --quiet; then
+            git commit -m 'Publish IPTV Android TV APK [skip ci]'
+            git push origin HEAD:iptv-apk-build
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IPTV-Player-TV-v0.5.0-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
