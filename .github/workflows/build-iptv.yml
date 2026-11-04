@@ -24,6 +24,44 @@ jobs:
           test -f app/build.gradle.kts
           sed -i -e "/import androidx.compose.ui.input.key.nativeKeyEvent/d" -e "s/val event = key.nativeKeyEvent/val event = key/" app/src/main/java/com/example/iptvplayertv/ui/player/PlayerScreen.kt
           sed -i -e "s/2026.09.00/2025.12.00/g" -e "s/activity-compose:1.13.0/activity-compose:1.11.0/g" -e "s/activity-ktx:1.13.0/activity-ktx:1.11.0/g" -e "s/2.11.0/2.9.4/g" -e "s/1.11.1/1.9.3/g" app/build.gradle.kts
+      - name: Fix Compose keyboard event handling
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/src/main/java/com/example/iptvplayertv/ui/player/PlayerScreen.kt')
+          s=p.read_text()
+          s=s.replace('import androidx.compose.ui.input.key.onPreviewKeyEvent','import androidx.compose.ui.input.key.onPreviewKeyEvent\nimport androidx.compose.ui.input.key.Key\nimport androidx.compose.ui.input.key.KeyEventType\nimport androidx.compose.ui.input.key.key\nimport androidx.compose.ui.input.key.type')
+          start=s.index('                    val event = key')
+          end=s.index('                }\n                .focusable()',start)
+          s=s[:start]+'''                    if (key.type != KeyEventType.KeyDown) {
+                        false
+                    } else {
+                        when (key.key) {
+                            Key.DirectionUp, Key.MediaPrevious -> {
+                                if (multiChannel) { previousAction(); true } else false
+                            }
+                            Key.DirectionDown, Key.MediaNext -> {
+                                if (multiChannel) { nextAction(); true } else false
+                            }
+                            Key.DirectionCenter, Key.Enter, Key.MediaPlayPause -> {
+                                if (currentError == null && currentPhase != PlaybackPhase.ENDED) {
+                                    if (player.isPlaying) player.pause() else player.play()
+                                    true
+                                } else false
+                            }
+                            Key.MediaPlay -> {
+                                if (currentError == null) { player.play(); true } else false
+                            }
+                            Key.MediaPause -> {
+                                player.pause()
+                                true
+                            }
+                            else -> false
+                        }
+                    }
+          '''+s[end:]
+          p.write_text(s)
+          PY
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
