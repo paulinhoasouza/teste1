@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import type { PessoaId } from "../tipos";
 
 /** Usado pelo proxy e pelas rotas; não guarda estado em módulo. */
 export const COOKIE_SESSAO = "sessao";
@@ -6,40 +7,31 @@ export const COOKIE_QUEM = "quem";
 const DURACAO_DIAS = 180;
 export const DURACAO_SEGUNDOS = DURACAO_DIAS * 24 * 60 * 60;
 
-async function segredo(senha: string): Promise<Uint8Array> {
-  const base = `a-dois:${senha}:${process.env.SUPABASE_URL ?? ""}`;
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(base));
-  return new Uint8Array(hash);
+/** Com o banco ligado, o app só abre para quem entrou com e-mail e senha. */
+export function loginAtivo(): boolean {
+  return (process.env.BANCO_SEGREDO?.trim() ?? "").length > 0;
 }
 
-export async function criarSessao(senha: string): Promise<string> {
-  return new SignJWT({ ok: true })
+async function chave(): Promise<Uint8Array> {
+  const base = `a-dois:sessao:${process.env.BANCO_SEGREDO ?? ""}`;
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(base)));
+}
+
+export async function criarSessao(pessoa: PessoaId): Promise<string> {
+  return new SignJWT({ pessoa })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${DURACAO_DIAS}d`)
-    .sign(await segredo(senha));
+    .sign(await chave());
 }
 
-export async function sessaoValida(token: string | undefined, senha: string): Promise<boolean> {
-  if (!token || !senha) return false;
+/** Devolve quem está logado, ou null se a sessão não vale. */
+export async function lerSessao(token: string | undefined): Promise<PessoaId | null> {
+  if (!token || !loginAtivo()) return null;
   try {
-    await jwtVerify(token, await segredo(senha), { algorithms: ["HS256"] });
-    return true;
+    const { payload } = await jwtVerify(token, await chave(), { algorithms: ["HS256"] });
+    return payload.pessoa === "a" || payload.pessoa === "b" ? payload.pessoa : null;
   } catch {
-    return false;
+    return null;
   }
-}
-
-/** Compara sem revelar pelo tempo onde as senhas diferem. */
-export async function senhaConfere(tentativa: string, senha: string): Promise<boolean> {
-  const enc = new TextEncoder();
-  const [x, y] = await Promise.all([
-    crypto.subtle.digest("SHA-256", enc.encode(tentativa)),
-    crypto.subtle.digest("SHA-256", enc.encode(senha)),
-  ]);
-  const a = new Uint8Array(x);
-  const b = new Uint8Array(y);
-  let dif = 0;
-  for (let i = 0; i < a.length; i++) dif |= a[i]! ^ b[i]!;
-  return dif === 0;
 }

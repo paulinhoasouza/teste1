@@ -26,12 +26,3 @@ export function credenciais(): Credenciais | null {
   if (!segredo) throw new ErroDeConfiguracao("Falta a variável BANCO_SEGREDO.");
   return { url, chave, segredo };
 }
-
-export function senhaDoApp(): string {
-  return process.env.APP_SENHA?.trim() ?? "";
-}
-
-/** A senha é opcional: sem APP_SENHA o app abre direto e o acesso fica por conta da proteção da Vercel. */
-export function exigeLogin(): boolean {
-  return senhaDoApp().length > 0;
-}

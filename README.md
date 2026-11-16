@@ -41,9 +41,16 @@ Sem essas variáveis o app abre em **modo de demonstração**, com dados de exem
 
 ## Quem consegue abrir
 
-O app não tem tela de login por padrão. Quem protege o endereço é a própria Vercel: em *Settings → Deployment Protection*, a opção *Vercel Authentication* só deixa entrar quem está logado na sua conta da Vercel. **Não desligue essa proteção sem antes definir uma senha**, ou qualquer pessoa com o endereço verá e poderá alterar suas finanças.
+Com o banco ligado, o app pede e-mail e senha. Cada pessoa tem o seu login, na tabela `usuarios`:
 
-Para dar acesso a alguém sem conta na Vercel, crie a variável `APP_SENHA`: o app passa a pedir essa senha na entrada, e aí a proteção da Vercel pode ser desligada para a produção.
+| Coluna | O que é |
+| --- | --- |
+| `email` | O e-mail de entrada, em minúsculas |
+| `pessoa` | `a` ou `b`: quem essa pessoa é dentro do app |
+| `senha_hash` | A senha embaralhada com scrypt; a senha em si não fica guardada |
+| `falhas`, `bloqueado_ate` | Cinco erros seguidos bloqueiam o e-mail por 15 minutos |
+
+Cada um troca a própria senha em Ajustes → Sua conta. Em modo de demonstração não há login.
 
 ## Rodar no computador
 

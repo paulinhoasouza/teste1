@@ -2,7 +2,8 @@ import { Casca } from "@/componentes/casca";
 import { Provedor } from "@/componentes/provedor";
 import { Marca } from "@/componentes/ui";
 import { carregar, quemEstaUsando } from "@/lib/servidor/acesso";
-import { ErroDeConfiguracao, exigeLogin } from "@/lib/servidor/ambiente";
+import { ErroDeConfiguracao } from "@/lib/servidor/ambiente";
+import { loginAtivo } from "@/lib/servidor/sessao";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ export default async function LayoutDoApp({ children }: { children: React.ReactN
   try {
     const { dados } = await carregar();
     return (
-      <Provedor inicial={dados} quemInicial={await quemEstaUsando()} temLogin={exigeLogin()}>
+      <Provedor inicial={dados} quemInicial={await quemEstaUsando()} temLogin={loginAtivo()}>
         <Casca>{children}</Casca>
       </Provedor>
     );

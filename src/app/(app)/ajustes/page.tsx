@@ -18,7 +18,7 @@ const CORES: { id: CorPessoa; nome: string; hex: string }[] = [
 ];
 
 export default function Ajustes() {
-  const { dados, nomes, executar, temLogin } = useApp();
+  const { dados, nomes, quem, executar, temLogin } = useApp();
   const { config } = dados;
   const salvar = (mudanca: Partial<Config>) =>
     void executar({ acao: "config.salvar", ...config, ...mudanca }, "Salvo");
@@ -130,28 +130,83 @@ export default function Ajustes() {
       </section>
 
       {temLogin ? (
-        <section className="secao" aria-labelledby="s-sessao">
+        <section className="secao" id="conta" aria-labelledby="s-conta">
           <div className="secao-rotulo">
-            <h2 id="s-sessao">Sessão</h2>
-            <p>Sair pede a senha de novo neste aparelho.</p>
+            <h2 id="s-conta">Sua conta</h2>
+            <p>Você entrou como {nomes[quem]}. A senha é só sua; a da outra pessoa não muda.</p>
           </div>
           <div className="painel">
-            <div>
-              <button
-                type="button"
-                className="botao"
-                onClick={async () => {
-                  await fetch("/api/sair", { method: "POST" });
-                  window.location.href = "/entrar";
-                }}
-              >
-                Sair deste aparelho
-              </button>
-            </div>
+            <TrocaDeSenha />
           </div>
         </section>
       ) : null}
     </>
+  );
+}
+
+function TrocaDeSenha() {
+  const { avisar } = useApp();
+  const [atual, setAtual] = useState("");
+  const [nova, setNova] = useState("");
+  const [erro, setErro] = useState("");
+  const [enviando, setEnviando] = useState(false);
+
+  const enviar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!atual || !nova) return setErro("Preencha as duas senhas.");
+    if (nova.length < 8) return setErro("A senha nova precisa de pelo menos 8 caracteres.");
+    setEnviando(true);
+    setErro("");
+    try {
+      const r = await fetch("/api/senha", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ atual, nova }),
+      });
+      if (r.ok) {
+        setAtual("");
+        setNova("");
+        avisar("Senha trocada");
+      } else {
+        const j = (await r.json().catch(() => ({}))) as { erro?: string };
+        setErro(j.erro ?? "Não foi possível trocar a senha agora.");
+      }
+    } catch {
+      setErro("Sem conexão. Tente de novo.");
+    }
+    setEnviando(false);
+  };
+
+  return (
+    <form onSubmit={enviar} noValidate style={{ display: "contents" }}>
+      <div className="dois">
+        <div className="campo">
+          <label htmlFor="senha-atual">Senha atual</label>
+          <input id="senha-atual" type="password" className="entrada" value={atual} autoComplete="current-password" onChange={(e) => { setAtual(e.target.value); setErro(""); }} />
+        </div>
+        <div className="campo">
+          <label htmlFor="senha-nova">Senha nova</label>
+          <input id="senha-nova" type="password" className="entrada" value={nova} autoComplete="new-password" aria-describedby="senha-dica" onChange={(e) => { setNova(e.target.value); setErro(""); }} />
+        </div>
+      </div>
+      <p className="campo-dica" id="senha-dica">Pelo menos 8 caracteres.</p>
+      {erro ? <p className="erro-campo" role="alert">{erro}</p> : null}
+      <div className="painel-pe" style={{ justifyContent: "space-between" }}>
+        <button
+          type="button"
+          className="botao"
+          onClick={async () => {
+            await fetch("/api/sair", { method: "POST" });
+            window.location.href = "/entrar";
+          }}
+        >
+          Sair deste aparelho
+        </button>
+        <button type="submit" className="botao primario" disabled={enviando}>
+          {enviando ? "Trocando" : "Trocar senha"}
+        </button>
+      </div>
+    </form>
   );
 }
 

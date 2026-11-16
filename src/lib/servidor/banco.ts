@@ -4,12 +4,14 @@ import {
   categoriaParaRegistro, configParaRegistro, fixaParaRegistro, lancamentoParaRegistro,
   registroParaCategoria, registroParaConfig, registroParaFixa, registroParaLancamento, type Registro,
 } from "../registros";
-import type { Dados } from "../tipos";
+import type { Dados, PessoaId } from "../tipos";
 import { ErroDeConfiguracao, type Credenciais } from "./ambiente";
 
 /** Acesso ao Postgres do Supabase pela API de dados (PostgREST). */
 
 type Tabela = "lancamentos" | "categorias" | "fixas" | "config";
+const MAXIMO_DE_FALHAS = 5;
+const MINUTOS_DE_BLOQUEIO = 15;
 const PAGINA = 1000;
 
 async function pedir(c: Credenciais, caminho: string, init: RequestInit = {}): Promise<Response> {
@@ -93,6 +95,63 @@ export async function gravar(c: Credenciais, patch: Patch): Promise<void> {
   await remover(c, "categorias", patch.categorias?.remover ?? []);
   await salvar(c, "categorias", (patch.categorias?.salvar ?? []).map(categoriaParaRegistro));
   if (patch.config) await salvar(c, "config", [configParaRegistro(patch.config)]);
+}
+
+export interface Usuario {
+  email: string;
+  pessoa: PessoaId;
+  senhaHash: string;
+  falhas: number;
+  /** Instante até o qual novas tentativas são recusadas; null = livre. */
+  bloqueadoAte: string | null;
+}
+
+async function umUsuario(c: Credenciais, filtro: string): Promise<Usuario | null> {
+  const r = await pedir(c, `usuarios?select=*&${filtro}&limit=1`);
+  const [u] = (await r.json()) as Registro[];
+  if (!u) return null;
+  return {
+    email: String(u.email),
+    pessoa: u.pessoa === "b" ? "b" : "a",
+    senhaHash: String(u.senha_hash ?? ""),
+    falhas: Number(u.falhas ?? 0),
+    bloqueadoAte: u.bloqueado_ate ? String(u.bloqueado_ate) : null,
+  };
+}
+
+export function buscarUsuario(c: Credenciais, email: string): Promise<Usuario | null> {
+  return umUsuario(c, `email=eq.${encodeURIComponent(email.trim().toLowerCase())}`);
+}
+
+export function buscarUsuarioDaPessoa(c: Credenciais, pessoa: PessoaId): Promise<Usuario | null> {
+  return umUsuario(c, `pessoa=eq.${pessoa}`);
+}
+
+async function alterarUsuario(c: Credenciais, email: string, campos: Registro): Promise<void> {
+  await pedir(c, `usuarios?email=eq.${encodeURIComponent(email)}`, {
+    method: "PATCH",
+    headers: { prefer: "return=minimal" },
+    body: JSON.stringify(campos),
+  });
+}
+
+/** Conta uma senha errada; na quinta seguida, bloqueia o e-mail por um tempo. */
+export async function registrarFalha(c: Credenciais, u: Usuario, agora: Date): Promise<void> {
+  const falhas = u.falhas + 1;
+  if (falhas >= MAXIMO_DE_FALHAS) {
+    const ate = new Date(agora.getTime() + MINUTOS_DE_BLOQUEIO * 60_000).toISOString();
+    await alterarUsuario(c, u.email, { falhas: 0, bloqueado_ate: ate });
+  } else {
+    await alterarUsuario(c, u.email, { falhas });
+  }
+}
+
+export async function registrarEntrada(c: Credenciais, u: Usuario): Promise<void> {
+  if (u.falhas > 0 || u.bloqueadoAte) await alterarUsuario(c, u.email, { falhas: 0, bloqueado_ate: null });
+}
+
+export async function gravarSenha(c: Credenciais, email: string, senhaHash: string): Promise<void> {
+  await alterarUsuario(c, email, { senha_hash: senhaHash, falhas: 0, bloqueado_ate: null });
 }
 
 export interface Diagnostico {

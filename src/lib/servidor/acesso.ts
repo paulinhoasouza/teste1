@@ -3,12 +3,15 @@ import { cookies } from "next/headers";
 import { hoje } from "../datas";
 import type { Dados, PessoaId } from "../tipos";
 import { credenciais, type Credenciais } from "./ambiente";
-import { dadosDeDemonstracao } from "./demo";
 import { lerDados } from "./banco";
-import { COOKIE_QUEM } from "./sessao";
+import { dadosDeDemonstracao } from "./demo";
+import { COOKIE_QUEM, COOKIE_SESSAO, lerSessao, loginAtivo } from "./sessao";
 
+/** Com login, é quem entrou; em demonstração, quem foi escolhido no menu. */
 export async function quemEstaUsando(): Promise<PessoaId> {
-  return (await cookies()).get(COOKIE_QUEM)?.value === "b" ? "b" : "a";
+  const jarra = await cookies();
+  if (loginAtivo()) return (await lerSessao(jarra.get(COOKIE_SESSAO)?.value)) ?? "a";
+  return jarra.get(COOKIE_QUEM)?.value === "b" ? "b" : "a";
 }
 
 export async function carregar(): Promise<{ dados: Dados; cred: Credenciais | null }> {

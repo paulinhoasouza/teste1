@@ -93,6 +93,20 @@ create policy app_com_segredo on public.lancamentos for all to anon
 create policy app_com_segredo on public.config for all to anon
   using ((select privado.pedido_autorizado())) with check ((select privado.pedido_autorizado()));
 
+-- Quem pode entrar no app. As senhas ficam só como hash scrypt, gerado pelo próprio app.
+create table public.usuarios (
+  email text primary key check (email = lower(email)),
+  pessoa text not null unique check (pessoa in ('a', 'b')),
+  senha_hash text not null,
+  falhas integer not null default 0,
+  bloqueado_ate timestamptz
+);
+
+alter table public.usuarios enable row level security;
+grant select, update on public.usuarios to anon;
+create policy app_com_segredo on public.usuarios for all to anon
+  using ((select privado.pedido_autorizado())) with check ((select privado.pedido_autorizado()));
+
 insert into public.config (id, nome_a, nome_b) values (1, 'Paulo', 'Giovana');
 
 insert into public.categorias (id, nome, tipo, ordem) values

@@ -141,43 +141,39 @@ function MenuQuem({ compacto }: { compacto?: boolean }) {
         className="quem-botao"
         aria-haspopup="menu"
         aria-expanded={aberto}
-        aria-label={`Usando como ${nomes[quem]}. Trocar de pessoa`}
+        aria-label={temLogin ? `Conta de ${nomes[quem]}` : `Usando como ${nomes[quem]}. Trocar de pessoa`}
         onClick={() => setAberto((v) => !v)}
       >
         <Avatar pessoa={quem} nome={nomes[quem]} tamanho="m" />
         {compacto ? null : (
           <span>
             <span className="quem-nome" style={{ display: "block" }}>{nomes[quem]}</span>
-            <span className="mudo" style={{ display: "block" }}>Usando agora</span>
+            <span className="mudo" style={{ display: "block" }}>{temLogin ? "Sua conta" : "Usando agora"}</span>
           </span>
         )}
       </button>
       {aberto ? (
-        <div className="quem-menu" role="menu" aria-label="Quem está usando">
-          {(["a", "b"] as const).map((p) => (
-            <button key={p} type="button" role="menuitemradio" aria-checked={quem === p} onClick={() => { setQuem(p); setAberto(false); }}>
-              <Avatar pessoa={p} nome={nomes[p]} tamanho="p" />
-              {nomes[p]}
-              {quem === p ? <Check className="marcado" size={16} strokeWidth={1.75} /> : null}
-            </button>
-          ))}
-          {compacto ? (
-            <>
-              <hr />
-              <Link href="/ajustes" role="menuitem" onClick={() => setAberto(false)}>
-                <Settings size={18} strokeWidth={1.5} />
-                Ajustes
-              </Link>
-            </>
+        <div className="quem-menu" role="menu" aria-label={temLogin ? "Sua conta" : "Quem está usando"}>
+          {temLogin
+            ? null
+            : (["a", "b"] as const).map((p) => (
+                <button key={p} type="button" role="menuitemradio" aria-checked={quem === p} onClick={() => { setQuem(p); setAberto(false); }}>
+                  <Avatar pessoa={p} nome={nomes[p]} tamanho="p" />
+                  {nomes[p]}
+                  {quem === p ? <Check className="marcado" size={16} strokeWidth={1.75} /> : null}
+                </button>
+              ))}
+          {compacto || temLogin ? (
+            <Link href={temLogin ? "/ajustes#conta" : "/ajustes"} role="menuitem" onClick={() => setAberto(false)}>
+              <Settings size={18} strokeWidth={1.5} />
+              {temLogin ? "Trocar senha" : "Ajustes"}
+            </Link>
           ) : null}
           {temLogin ? (
-            <>
-              <hr />
-              <button type="button" role="menuitem" onClick={sair}>
-                <LogOut size={18} strokeWidth={1.5} />
-                Sair
-              </button>
-            </>
+            <button type="button" role="menuitem" onClick={sair}>
+              <LogOut size={18} strokeWidth={1.5} />
+              Sair
+            </button>
           ) : null}
         </div>
       ) : null}

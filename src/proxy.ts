@@ -1,16 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { COOKIE_SESSAO, sessaoValida } from "@/lib/servidor/sessao";
+import { COOKIE_SESSAO, lerSessao, loginAtivo } from "@/lib/servidor/sessao";
 
-/** Só age quando APP_SENHA está definida: aí nada além da tela de entrada abre sem sessão. */
+/** Com o banco ligado, nada além da tela de entrada abre sem sessão. Em demonstração, tudo abre. */
 export async function proxy(req: NextRequest) {
-  const senha = process.env.APP_SENHA?.trim() ?? "";
-  if (!senha) return NextResponse.next();
+  if (!loginAtivo()) return NextResponse.next();
 
   const { pathname } = req.nextUrl;
   const livre = pathname === "/entrar" || pathname === "/api/entrar";
-  const valida = await sessaoValida(req.cookies.get(COOKIE_SESSAO)?.value, senha);
+  const logado = (await lerSessao(req.cookies.get(COOKIE_SESSAO)?.value)) !== null;
 
-  if (valida) {
+  if (logado) {
     return pathname === "/entrar" ? NextResponse.redirect(new URL("/", req.url)) : NextResponse.next();
   }
   if (livre) return NextResponse.next();
