@@ -120,8 +120,8 @@ export default function Ajustes() {
                 <li>Crie uma planilha em branco e compartilhe com o e-mail da conta de serviço, como Editor.</li>
                 <li>
                   <span>
-                  Na Vercel, em Settings, Environment Variables, crie <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> (o conteúdo do
-                  arquivo), <code>GOOGLE_SHEET_ID</code> (o endereço da planilha) e <code>APP_SENHA</code> (a senha de vocês).
+                  Na Vercel, em Settings, Environment Variables, crie <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> com o
+                    conteúdo do arquivo da chave.
                   </span>
                 </li>
                 <li>Faça um novo deploy. As abas da planilha são criadas sozinhas na primeira abertura.</li>

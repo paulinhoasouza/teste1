@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ErroDeAcao, planejar } from "@/lib/acoes";
 import { carregar, quemEstaUsando } from "@/lib/servidor/acesso";
-import { ErroDeConfiguracao, exigeLogin } from "@/lib/servidor/ambiente";
+import { ErroDeConfiguracao } from "@/lib/servidor/ambiente";
 import { gravar } from "@/lib/servidor/planilha";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,6 @@ export async function POST(req: Request) {
 
   try {
     const { dados, cred } = await carregar();
-    if (cred && !exigeLogin()) throw new ErroDeConfiguracao("Falta a variável APP_SENHA.");
     const usados = new Set([
       ...dados.lancamentos.flatMap((l) => [l.id, l.grupo]),
       ...dados.fixas.map((f) => f.id),

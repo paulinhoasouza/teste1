@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
 import { carregar } from "@/lib/servidor/acesso";
-import { ErroDeConfiguracao, exigeLogin } from "@/lib/servidor/ambiente";
+import { ErroDeConfiguracao } from "@/lib/servidor/ambiente";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const { dados, cred } = await carregar();
-    if (cred && !exigeLogin()) {
-      throw new ErroDeConfiguracao(
-        "A planilha está conectada, mas falta a variável APP_SENHA. Sem ela, qualquer pessoa com o endereço veria suas finanças.",
-      );
-    }
+    const { dados } = await carregar();
     return NextResponse.json(dados, { headers: { "cache-control": "no-store" } });
   } catch (e) {
     if (e instanceof ErroDeConfiguracao) {

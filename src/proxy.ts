@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { COOKIE_SESSAO, sessaoValida } from "@/lib/servidor/sessao";
 
-/** Com APP_SENHA definida, nada além da tela de entrada abre sem sessão. */
+/** Só age quando APP_SENHA está definida: aí nada além da tela de entrada abre sem sessão. */
 export async function proxy(req: NextRequest) {
   const senha = process.env.APP_SENHA?.trim() ?? "";
   if (!senha) return NextResponse.next();

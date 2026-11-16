@@ -9,12 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function LayoutDoApp({ children }: { children: React.ReactNode }) {
   let problema = "";
   try {
-    const { dados, cred } = await carregar();
-    if (cred && !exigeLogin()) {
-      throw new ErroDeConfiguracao(
-        "A planilha está conectada, mas falta a variável APP_SENHA. Sem ela, qualquer pessoa com o endereço veria suas finanças.",
-      );
-    }
+    const { dados } = await carregar();
     return (
       <Provedor inicial={dados} quemInicial={await quemEstaUsando()} temLogin={exigeLogin()}>
         <Casca>{children}</Casca>

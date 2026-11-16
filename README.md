@@ -35,11 +35,14 @@ Enquanto a chave da conta de serviço não estiver configurada, o app abre em **
    | --- | --- |
    | `GOOGLE_SERVICE_ACCOUNT_JSON` | O conteúdo inteiro do arquivo JSON baixado |
    | `GOOGLE_SHEET_ID` | O endereço da planilha (ou só o id) |
-   | `APP_SENHA` | A senha que vocês dois vão usar para entrar |
 
 4. **Novo deploy.** Em *Deployments*, refaça o último deploy para as variáveis valerem.
 
-Com a planilha ligada, o app só abre com a senha. Sem `APP_SENHA` ele se recusa a mostrar os dados.
+## Quem consegue abrir
+
+O app não tem tela de login por padrão. Quem protege o endereço é a própria Vercel: em *Settings → Deployment Protection*, a opção *Vercel Authentication* só deixa entrar quem está logado na sua conta da Vercel. **Não desligue essa proteção sem antes definir uma senha**, ou qualquer pessoa com o endereço verá e poderá alterar suas finanças.
+
+Para dar acesso a alguém sem conta na Vercel, crie a variável `APP_SENHA`: o app passa a pedir essa senha na entrada, e aí a proteção da Vercel pode ser desligada para a produção.
 
 ## Rodar no computador
 
