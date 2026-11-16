@@ -25,7 +25,7 @@ Dá para editar a planilha à mão. Só não apague a primeira linha (cabeçalho
 
 ## Ligar a planilha (uma vez só)
 
-Sem configuração o app abre em **modo de demonstração**, com dados de exemplo que não são gravados.
+Enquanto a chave da conta de serviço não estiver configurada, o app abre em **modo de demonstração**, com dados de exemplo que não são gravados.
 
 1. **Conta de serviço.** No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto, ative a *Google Sheets API* e, em *IAM e administrador → Contas de serviço*, crie uma conta de serviço. Na aba *Chaves*, adicione uma chave do tipo JSON e baixe o arquivo.
 2. **Planilha.** Crie uma planilha em branco no Google Sheets e compartilhe com o e-mail da conta de serviço (termina em `iam.gserviceaccount.com`), como **Editor**.

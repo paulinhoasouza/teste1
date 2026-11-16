@@ -20,7 +20,8 @@ export function credenciais(): Credenciais | null {
   let email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim() ?? "";
   let chave = process.env.GOOGLE_PRIVATE_KEY ?? "";
 
-  if (!planilha && !json && !email && !chave) return null;
+  // Sem chave não há como ler a planilha: demonstração, mesmo que o endereço já esteja definido.
+  if (!json && !email && !chave) return null;
 
   if (json) {
     try {
