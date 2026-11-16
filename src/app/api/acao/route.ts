@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ErroDeAcao, planejar } from "@/lib/acoes";
 import { carregar, quemEstaUsando } from "@/lib/servidor/acesso";
 import { ErroDeConfiguracao } from "@/lib/servidor/ambiente";
-import { gravar } from "@/lib/servidor/planilha";
+import { gravar } from "@/lib/servidor/banco";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "Pedido inválido." }, { status: 400 });
   }
 
-  // O cliente propõe os ids para que a tela e a planilha fiquem iguais sem esperar a resposta.
+  // O cliente propõe os ids para que a tela e o banco fiquem iguais sem esperar a resposta.
   const propostos = Array.isArray(corpo.ids)
     ? corpo.ids.filter((x): x is string => typeof x === "string" && ID.test(x))
     : [];
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
   } catch (e) {
     if (e instanceof ErroDeAcao) return NextResponse.json({ erro: e.message }, { status: 422 });
     if (e instanceof ErroDeConfiguracao) return NextResponse.json({ erro: e.message }, { status: 503 });
-    console.error("Falha ao gravar na planilha", e);
-    return NextResponse.json({ erro: "Não foi possível gravar na planilha. Nada foi alterado." }, { status: 502 });
+    console.error("Falha ao gravar no banco", e);
+    return NextResponse.json({ erro: "Não foi possível gravar. Nada foi alterado." }, { status: 502 });
   }
 }

@@ -20,7 +20,7 @@ export default async function LayoutDoApp({ children }: { children: React.ReactN
     problema =
       e instanceof ErroDeConfiguracao
         ? e.message
-        : "Não foi possível ler a planilha agora. Tente de novo em instantes.";
+        : "Não foi possível ler os dados agora. Tente de novo em instantes.";
   }
 
   return (

@@ -1,6 +1,6 @@
 import type { Categoria, Config } from "./tipos";
 
-/** Como uma planilha nova começa; os nomes mudam em Ajustes. */
+/** Como um banco novo começa; os nomes mudam em Ajustes. */
 export const CONFIG_INICIAL: Config = {
   nomeA: "Paulo",
   nomeB: "Giovana",

@@ -1,6 +1,6 @@
 # A dois — controle financeiro do casal
 
-Controle financeiro pessoal para duas pessoas. Os dados ficam numa planilha do Google Sheets de vocês e o app roda na Vercel.
+Controle financeiro pessoal para duas pessoas. Os dados ficam num banco Postgres no Supabase e o app roda na Vercel.
 
 ## O que ele faz
 
@@ -10,33 +10,34 @@ Controle financeiro pessoal para duas pessoas. Os dados ficam numa planilha do G
 - **Contas fixas**: aluguel, internet e salários cadastrados uma vez; a cada mês viram uma lista para marcar como paga ou recebida.
 - **Orçamento por categoria**: opcional; avisa quando uma categoria passa do planejado.
 
-## Como os dados ficam na planilha
+## Onde os dados ficam
 
-O app cria quatro abas na primeira abertura:
+Num projeto do Supabase, em quatro tabelas criadas por `supabase/esquema.sql`:
 
-| Aba | O que guarda |
+| Tabela | O que guarda |
 | --- | --- |
-| `Lancamentos` | Uma linha por despesa, receita ou acerto. Valores em reais. |
-| `Categorias` | Nome, tipo e orçamento mensal de cada categoria. |
-| `Fixas` | Contas e receitas que se repetem todo mês. |
-| `Config` | Nomes, cores e a divisão padrão do que é do casal. |
+| `lancamentos` | Uma linha por despesa, receita ou acerto. Valores em reais. |
+| `categorias` | Nome, tipo e orçamento mensal de cada categoria. |
+| `fixas` | Contas e receitas que se repetem todo mês. |
+| `config` | Uma linha só: nomes, cores e a divisão padrão do que é do casal. |
 
-Dá para editar a planilha à mão. Só não apague a primeira linha (cabeçalho) nem a coluna `id`. Nas colunas `pago_por` e `de_quem`, `a` é a primeira pessoa, `b` a segunda e `casal` o que é dos dois.
+Nas colunas `pago_por` e `de_quem`, `a` é a primeira pessoa, `b` a segunda e `casal` o que é dos dois. Dá para consultar e corrigir os dados pelo Table Editor do Supabase.
 
-## Ligar a planilha (uma vez só)
+## Como o app chega ao banco
 
-Enquanto a chave da conta de serviço não estiver configurada, o app abre em **modo de demonstração**, com dados de exemplo que não são gravados.
+O servidor do app (nunca o navegador) fala com a API de dados do Supabase usando três variáveis de ambiente na Vercel:
 
-1. **Conta de serviço.** No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto, ative a *Google Sheets API* e, em *IAM e administrador → Contas de serviço*, crie uma conta de serviço. Na aba *Chaves*, adicione uma chave do tipo JSON e baixe o arquivo.
-2. **Planilha.** Crie uma planilha em branco no Google Sheets e compartilhe com o e-mail da conta de serviço (termina em `iam.gserviceaccount.com`), como **Editor**.
-3. **Variáveis na Vercel.** Em *Settings → Environment Variables* do projeto:
+| Variável | Valor |
+| --- | --- |
+| `SUPABASE_URL` | Endereço do projeto, como `https://xxxx.supabase.co` |
+| `SUPABASE_KEY` | Chave publicável do projeto (`sb_publishable_...`) |
+| `BANCO_SEGREDO` | Segredo próprio do app, enviado no cabeçalho `x-app-chave` |
 
-   | Variável | Valor |
-   | --- | --- |
-   | `GOOGLE_SERVICE_ACCOUNT_JSON` | O conteúdo inteiro do arquivo JSON baixado |
-   | `GOOGLE_SHEET_ID` | O endereço da planilha (ou só o id) |
+A chave publicável sozinha não abre nada: todas as tabelas têm RLS, e a única política exige que o pedido traga o segredo do app. O banco guarda apenas o SHA-256 desse segredo, na função `privado.pedido_autorizado()`.
 
-4. **Novo deploy.** Em *Deployments*, refaça o último deploy para as variáveis valerem.
+Para trocar o segredo: gere um novo (`openssl rand -hex 32`), grave o SHA-256 dele na função e atualize `BANCO_SEGREDO` na Vercel.
+
+Sem essas variáveis o app abre em **modo de demonstração**, com dados de exemplo que não são gravados. Em Ajustes há um botão **Testar gravação**, que grava, altera e apaga uma linha de teste.
 
 ## Quem consegue abrir
 
@@ -49,11 +50,11 @@ Para dar acesso a alguém sem conta na Vercel, crie a variável `APP_SENHA`: o a
 ```bash
 npm install
 npm run dev        # http://localhost:3000, em modo de demonstração
-npm test           # testes da lógica de dinheiro, divisão e planilha
+npm test           # testes da lógica de dinheiro, divisão e banco
 ```
 
-Para usar a planilha localmente, copie `.env.example` para `.env.local` e preencha.
+Para usar o banco localmente, copie `.env.example` para `.env.local` e preencha.
 
 ## Por dentro
 
-Next.js (App Router) e TypeScript. A lógica de dinheiro é pura e testada em `src/lib` (`dominio.ts`, `acoes.ts`, `linhas.ts`); a planilha é acessada pela API REST do Google Sheets em `src/lib/servidor/planilha.ts`; as telas ficam em `src/app/(app)`.
+Next.js (App Router) e TypeScript. A lógica de dinheiro é pura e testada em `src/lib` (`dominio.ts`, `acoes.ts`, `registros.ts`); o banco é acessado pela API de dados do Supabase em `src/lib/servidor/banco.ts`; as telas ficam em `src/app/(app)`.

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useApp } from "./provedor";
 import { Marca } from "./ui";
 
-/** Primeira vez numa planilha nova: só falta saber como vocês se chamam. */
+/** Primeira vez num banco novo: só falta saber como vocês se chamam. */
 export function BoasVindas() {
   const { dados, executar } = useApp();
   const [nomeA, setNomeA] = useState(dados.config.nomeA);

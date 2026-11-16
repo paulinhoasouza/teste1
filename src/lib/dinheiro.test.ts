@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { centavosDeDigitos, formatar, partesBRL, paraPlanilha, daPlanilha } from "./dinheiro";
+import { centavosDeDigitos, formatar, partesBRL, paraReais, deReais } from "./dinheiro";
 
 describe("dinheiro", () => {
   it("formata centavos em reais", () => {
@@ -20,12 +20,12 @@ describe("dinheiro", () => {
     expect(centavosDeDigitos("")).toBe(0);
   });
 
-  it("converte entre centavos e o número guardado na planilha", () => {
-    expect(paraPlanilha(123456)).toBe(1234.56);
-    expect(daPlanilha(1234.56)).toBe(123456);
-    expect(daPlanilha("1234,56")).toBe(123456);
-    expect(daPlanilha("R$ 1.234,56")).toBe(123456);
-    expect(daPlanilha("19.9")).toBe(1990);
-    expect(daPlanilha("")).toBe(0);
+  it("converte entre centavos e o valor em reais guardado no banco", () => {
+    expect(paraReais(123456)).toBe(1234.56);
+    expect(deReais(1234.56)).toBe(123456);
+    expect(deReais("1234,56")).toBe(123456);
+    expect(deReais("R$ 1.234,56")).toBe(123456);
+    expect(deReais("19.9")).toBe(1990);
+    expect(deReais("")).toBe(0);
   });
 });

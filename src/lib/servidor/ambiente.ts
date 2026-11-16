@@ -1,46 +1,30 @@
 import "server-only";
 
 export interface Credenciais {
-  email: string;
+  /** Endereço do projeto no Supabase, sem barra no fim. */
+  url: string;
+  /** Chave publicável do projeto. */
   chave: string;
-  planilhaId: string;
+  /** Segredo próprio do app, conferido pelo banco em cada pedido. */
+  segredo: string;
 }
 
 export class ErroDeConfiguracao extends Error {}
 
-function idDaPlanilha(valor: string): string {
-  const m = /\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/.exec(valor);
-  return (m?.[1] ?? valor).trim();
-}
-
-/** Lê as credenciais do Google; null quando o app deve rodar em demonstração. */
+/** Lê o acesso ao banco; null quando o app deve rodar em demonstração. */
 export function credenciais(): Credenciais | null {
-  const planilha = process.env.GOOGLE_SHEET_ID?.trim();
-  const json = process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim();
-  let email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL?.trim() ?? "";
-  let chave = process.env.GOOGLE_PRIVATE_KEY ?? "";
+  const url = process.env.SUPABASE_URL?.trim().replace(/\/+$/, "") ?? "";
+  const chave = process.env.SUPABASE_KEY?.trim() ?? "";
+  const segredo = process.env.BANCO_SEGREDO?.trim() ?? "";
 
-  // Sem chave não há como ler a planilha: demonstração, mesmo que o endereço já esteja definido.
-  if (!json && !email && !chave) return null;
+  if (!url && !chave && !segredo) return null;
 
-  if (json) {
-    try {
-      const conta = JSON.parse(json) as { client_email?: string; private_key?: string };
-      email = conta.client_email ?? "";
-      chave = conta.private_key ?? "";
-    } catch {
-      throw new ErroDeConfiguracao(
-        "GOOGLE_SERVICE_ACCOUNT_JSON não é um JSON válido. Cole o conteúdo inteiro do arquivo da chave.",
-      );
-    }
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)) {
+    throw new ErroDeConfiguracao("A variável SUPABASE_URL está faltando ou não é um endereço do Supabase.");
   }
-  chave = chave.replace(/\\n/g, "\n").trim();
-
-  if (!planilha) throw new ErroDeConfiguracao("Falta a variável GOOGLE_SHEET_ID com o endereço da planilha.");
-  if (!email || !chave) {
-    throw new ErroDeConfiguracao("Falta a chave da conta de serviço do Google (GOOGLE_SERVICE_ACCOUNT_JSON).");
-  }
-  return { email, chave, planilhaId: idDaPlanilha(planilha) };
+  if (!chave) throw new ErroDeConfiguracao("Falta a variável SUPABASE_KEY com a chave do projeto.");
+  if (!segredo) throw new ErroDeConfiguracao("Falta a variável BANCO_SEGREDO.");
+  return { url, chave, segredo };
 }
 
 export function senhaDoApp(): string {

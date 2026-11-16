@@ -4,7 +4,7 @@ import { hoje } from "../datas";
 import type { Dados, PessoaId } from "../tipos";
 import { credenciais, type Credenciais } from "./ambiente";
 import { dadosDeDemonstracao } from "./demo";
-import { lerDados } from "./planilha";
+import { lerDados } from "./banco";
 import { COOKIE_QUEM } from "./sessao";
 
 export async function quemEstaUsando(): Promise<PessoaId> {

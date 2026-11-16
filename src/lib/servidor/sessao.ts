@@ -7,7 +7,7 @@ const DURACAO_DIAS = 180;
 export const DURACAO_SEGUNDOS = DURACAO_DIAS * 24 * 60 * 60;
 
 async function segredo(senha: string): Promise<Uint8Array> {
-  const base = `a-dois:${senha}:${process.env.GOOGLE_SHEET_ID ?? ""}`;
+  const base = `a-dois:${senha}:${process.env.SUPABASE_URL ?? ""}`;
   const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(base));
   return new Uint8Array(hash);
 }

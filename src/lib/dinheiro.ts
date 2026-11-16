@@ -1,4 +1,4 @@
-/** Dinheiro em centavos inteiros; a planilha guarda reais com duas casas. */
+/** Dinheiro em centavos inteiros no app; o banco guarda reais com duas casas. */
 
 export interface PartesBRL {
   sinal: string;
@@ -35,11 +35,11 @@ export function centavosDeDigitos(texto: string): number {
   return digitos ? parseInt(digitos, 10) : 0;
 }
 
-export function paraPlanilha(centavos: number): number {
+export function paraReais(centavos: number): number {
   return Math.round(centavos) / 100;
 }
 
-export function daPlanilha(valor: unknown): number {
+export function deReais(valor: unknown): number {
   if (typeof valor === "number") return Math.round(valor * 100);
   if (typeof valor !== "string") return 0;
   let s = valor.replace(/[^\d.,-]/g, "");

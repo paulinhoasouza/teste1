@@ -12,7 +12,7 @@ export async function GET() {
     if (e instanceof ErroDeConfiguracao) {
       return NextResponse.json({ erro: e.message, configuracao: true }, { status: 503 });
     }
-    console.error("Falha ao ler a planilha", e);
-    return NextResponse.json({ erro: "Não foi possível ler a planilha agora." }, { status: 502 });
+    console.error("Falha ao ler o banco", e);
+    return NextResponse.json({ erro: "Não foi possível ler os dados agora." }, { status: 502 });
   }
 }

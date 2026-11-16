@@ -77,7 +77,7 @@ export function Casca({ children }: { children: ReactNode }) {
           {dados.demo ? (
             <p className="faixa-demo">
               <span>Estes são dados de exemplo. O que você lançar aqui some ao recarregar a página.</span>
-              <Link href="/ajustes#planilha">Conectar a planilha</Link>
+              <Link href="/ajustes#dados">Ligar o banco de dados</Link>
             </p>
           ) : null}
           {children}

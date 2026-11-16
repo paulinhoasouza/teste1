@@ -105,36 +105,25 @@ export default function Ajustes() {
         </div>
       </section>
 
-      <section className="secao" id="planilha" aria-labelledby="s-planilha">
+      <section className="secao" id="dados" aria-labelledby="s-dados">
         <div className="secao-rotulo">
-          <h2 id="s-planilha">Planilha do Google</h2>
-          <p>Todos os dados ficam numa planilha de vocês. Dá para abrir, conferir e fazer contas nela quando quiserem.</p>
+          <h2 id="s-dados">Onde os dados ficam</h2>
+          <p>Num banco de dados só de vocês, no Supabase. O app guarda lá cada lançamento, conta fixa e categoria.</p>
         </div>
         <div className="painel">
           {dados.demo ? (
             <>
               <p><span className="pilula aviso">Demonstração</span></p>
-              <p>O app ainda não está ligado a uma planilha, por isso mostra dados de exemplo. Para ligar:</p>
-              <ol className="passo-a-passo">
-                <li>No Google Cloud, crie uma conta de serviço com a API do Google Sheets ativada e baixe a chave em JSON.</li>
-                <li>Crie uma planilha em branco e compartilhe com o e-mail da conta de serviço, como Editor.</li>
-                <li>
-                  <span>
-                  Na Vercel, em Settings, Environment Variables, crie <code>GOOGLE_SERVICE_ACCOUNT_JSON</code> com o
-                    conteúdo do arquivo da chave.
-                  </span>
-                </li>
-                <li>Faça um novo deploy. As abas da planilha são criadas sozinhas na primeira abertura.</li>
-              </ol>
-              <p className="pequeno mudo">O passo a passo completo está no arquivo README do repositório.</p>
+              <p>
+                O app ainda não está ligado ao banco, por isso mostra dados de exemplo. Para ligar, defina na Vercel as
+                variáveis <code>SUPABASE_URL</code>, <code>SUPABASE_KEY</code> e <code>BANCO_SEGREDO</code> e faça um novo
+                deploy. O passo a passo está no arquivo README do repositório.
+              </p>
             </>
           ) : (
             <>
-              <p><span className="pilula bom">Conectada</span></p>
-              <p>
-                O app lê e grava nas abas Lancamentos, Categorias, Fixas e Config. Pode editar a planilha à mão; só não apague a
-                primeira linha nem a coluna id.
-              </p>
+              <p><span className="pilula bom">Conectado</span></p>
+              <TesteDoBanco />
             </>
           )}
         </div>
@@ -162,6 +151,40 @@ export default function Ajustes() {
           </div>
         </section>
       ) : null}
+    </>
+  );
+}
+
+function TesteDoBanco() {
+  const [estado, setEstado] = useState<"parado" | "testando" | "certo" | "falhou">("parado");
+  const [detalhe, setDetalhe] = useState("");
+  const testar = async () => {
+    setEstado("testando");
+    try {
+      const r = await fetch("/api/diagnostico", { cache: "no-store" });
+      const j = (await r.json()) as { ok?: boolean; erro?: string; passos?: { passo: string; ok: boolean; detalhe?: string }[] };
+      const falha = j.passos?.find((p) => !p.ok);
+      setDetalhe(j.erro ?? (falha ? `Falhou ao ${falha.passo}: ${falha.detalhe ?? ""}` : ""));
+      setEstado(j.ok ? "certo" : "falhou");
+    } catch {
+      setDetalhe("Sem conexão.");
+      setEstado("falhou");
+    }
+  };
+  return (
+    <>
+      <p>
+        {estado === "certo"
+          ? "O banco leu, gravou, alterou e apagou uma linha de teste. Está tudo funcionando."
+          : estado === "falhou"
+            ? `O teste não passou. ${detalhe}`
+            : "O teste grava uma linha, altera, relê e apaga. Seus dados não são tocados."}
+      </p>
+      <div>
+        <button type="button" className="botao" onClick={testar} disabled={estado === "testando"}>
+          {estado === "testando" ? "Testando" : "Testar gravação"}
+        </button>
+      </div>
     </>
   );
 }
