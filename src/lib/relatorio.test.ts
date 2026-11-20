@@ -54,6 +54,7 @@ function cenario(): Dados {
     fixas,
     lancamentos,
     comprovantes: [],
+    atividades: [],
   };
 }
 

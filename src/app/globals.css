@@ -1102,6 +1102,80 @@ dialog.visor::backdrop { background: transparent; }
   .anexo { width: 72px; height: 72px; }
 }
 
+/* ---------- Atividade ---------- */
+
+.botao-atividade { position: relative; }
+.botao-atividade[aria-current="page"] { background: var(--fill-forte); }
+.selo-canto { position: absolute; top: 1px; right: -1px; min-width: 17px; height: 17px; font-size: 10px; padding: 0 4px; box-shadow: 0 0 0 2px var(--vidro-barra); }
+.fichas.rolavel { margin-top: -6px; }
+.nota-historico { padding: 0 6px; }
+
+.linha-do-tempo > section + section { margin-top: 8px; }
+.linha-do-tempo .dia { padding-top: 14px; }
+.linha-do-tempo > section:first-child .dia { padding-top: 0; }
+.ativs { position: relative; display: grid; }
+/* O fio da linha do tempo, passando pelo centro dos ícones. */
+.ativs::before {
+  content: ""; position: absolute; left: 15px; top: 18px; bottom: 18px; width: 1px;
+  background: linear-gradient(var(--separator), var(--separator)) no-repeat;
+}
+.ativ {
+  position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: 12px; align-items: start;
+  padding: 10px 0; animation: chegar 520ms var(--mola) backwards;
+}
+.ativ-icone {
+  position: relative; z-index: 1; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface); box-shadow: inset 0 0 0 1px var(--vidro-contorno), 0 0 0 4px var(--cartao-fundo);
+}
+.tom-criou { color: var(--positive); }
+.tom-alterou { color: var(--accent-texto); }
+.tom-apagou { color: var(--negative); }
+.tom-pagou { color: var(--a-ink); }
+.tom-acesso { color: var(--muted); }
+.ativ-corpo { min-width: 0; padding-top: 4px; display: grid; gap: 6px; }
+.ativ-texto { display: flex; align-items: flex-start; gap: 8px; font-size: 15px; line-height: 1.4; }
+.ativ-texto .avatar { margin-top: 1px; }
+.ativ-texto strong { font-weight: 600; }
+.ativ-novo {
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; vertical-align: 1px;
+  background: var(--selo); color: var(--selo-tinta); font-size: 11px; font-weight: 700;
+}
+.ativ.nova .ativ-icone { box-shadow: inset 0 0 0 1.5px var(--selo), 0 0 0 4px var(--cartao-fundo); }
+.ativ-detalhe { font-size: 13.5px; color: var(--muted); margin-left: 32px; }
+.ativ-detalhe.apagado { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.mudancas {
+  margin-left: 32px; display: grid; gap: 0; border-radius: 12px; background: var(--raised); padding: 4px 12px;
+  box-shadow: inset 0 0 0 1px var(--vidro-contorno);
+}
+.mudancas > div { display: grid; grid-template-columns: minmax(84px, auto) minmax(0, 1fr); gap: 12px; padding: 7px 0; font-size: 13.5px; }
+.mudancas > div + div { border-top: 1px solid var(--separator); }
+.mudancas dt { color: var(--muted); }
+.mudancas dd { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
+.mudancas dd svg { color: var(--tertiary); flex: none; }
+.mudancas del { color: var(--muted); text-decoration-color: var(--negative); }
+.mudancas ins { text-decoration: none; font-weight: 600; color: var(--text); }
+.ativ-fim { display: grid; justify-items: end; gap: 4px; padding-top: 6px; }
+.ativ-fim time { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) {
+  .ativ { grid-template-columns: 32px minmax(0, 1fr); }
+  .ativ-fim { grid-column: 2; grid-row: 1; justify-self: end; padding-top: 0; position: absolute; right: 0; top: 10px; }
+  .ativ-corpo { padding-right: 52px; }
+  .mudancas, .ativ-detalhe { margin-left: 0; }
+  .mudancas > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .fichas.rolavel { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: -6px calc(-1 * var(--gutter)) 0; padding: 0 var(--gutter); }
+  .fichas.rolavel > * { flex: none; }
+}
+
+/* Câmera só onde há toque; no computador, um botão só de anexar. */
+.so-toque-texto { display: none; }
+@media (hover: none), (pointer: coarse) {
+  .so-toque-texto { display: inline; }
+  .so-mouse-texto { display: none; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .so-toque { display: none; }
+}
+
 /* ---------- Telas médias ---------- */
 
 @media (max-width: 1320px) {
@@ -1209,6 +1283,7 @@ dialog.visor::backdrop { background: transparent; }
   .filtros > * { flex: none; }
   .filtros.empilhar { flex-wrap: wrap; overflow: visible; margin: 0 0 16px; padding: 0; }
   .filtros.empilhar > .segmentado { width: 100%; }
+  .filtros.empilhar > .busca { flex: 1 1 100%; }
   .legenda { gap: 6px 16px; }
   .linha-l2 { white-space: normal; }
   .linha-acao { width: auto; }

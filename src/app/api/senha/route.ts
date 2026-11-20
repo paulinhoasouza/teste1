@@ -1,4 +1,6 @@
 import { cookies } from "next/headers";
+import { descreverAcesso, novoIdDeAtividade } from "@/lib/atividade";
+import { anotar } from "@/lib/servidor/anotar";
 import { NextResponse } from "next/server";
 import { ErroDeConfiguracao, credenciais } from "@/lib/servidor/ambiente";
 import { buscarUsuarioDaPessoa, gravarSenha } from "@/lib/servidor/banco";
@@ -31,6 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ erro: "A senha atual não confere." }, { status: 422 });
     }
     await gravarSenha(cred, usuario.email, await gerarHash(nova));
+    await anotar(cred, descreverAcesso("acesso.senha", { id: novoIdDeAtividade(), quando: new Date().toISOString(), quem: pessoa }));
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof ErroDeConfiguracao) return NextResponse.json({ erro: e.message }, { status: 503 });

@@ -139,6 +139,24 @@ revoke update, truncate, references, trigger on public.comprovantes from anon, a
 create policy app_com_segredo on public.comprovantes for all to anon
   using ((select privado.pedido_autorizado())) with check ((select privado.pedido_autorizado()));
 
+-- Tudo o que cada um fez no app. Só se inclui e se lê: o histórico não se altera nem se apaga.
+create table public.atividades (
+  id text primary key check (id ~ '^[a-f0-9]{16,32}$'),
+  quando timestamptz not null default now(),
+  quem text not null check (quem in ('a', 'b')),
+  tipo text not null check (length(tipo) between 1 and 40),
+  resumo text not null check (length(resumo) <= 400),
+  mudancas jsonb not null default '[]'::jsonb,
+  alvo text not null default '' check (length(alvo) <= 60)
+);
+create index atividades_quando on public.atividades (quando desc, id desc);
+
+alter table public.atividades enable row level security;
+revoke all on public.atividades from anon, authenticated;
+grant select, insert on public.atividades to anon;
+create policy app_com_segredo on public.atividades for all to anon
+  using ((select privado.pedido_autorizado())) with check ((select privado.pedido_autorizado()));
+
 insert into public.config (id, nome_a, nome_b) values (1, 'Paulo', 'Giovana');
 
 insert into public.categorias (id, nome, tipo, ordem) values

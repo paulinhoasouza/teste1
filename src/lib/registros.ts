@@ -1,5 +1,5 @@
 import { deReais, paraReais } from "./dinheiro";
-import type { Categoria, Comprovante, Config, CorPessoa, Dono, Fixa, Lancamento, PessoaId } from "./tipos";
+import type { Atividade, Categoria, Comprovante, Config, Mudanca, TipoAtividade, CorPessoa, Dono, Fixa, Lancamento, PessoaId } from "./tipos";
 
 /** Uma linha de tabela como a API do banco devolve. */
 export type Registro = Record<string, unknown>;
@@ -135,5 +135,28 @@ export function registroParaComprovante(r: Registro): Comprovante {
     tamanho: inteiro(r.tamanho, 0, 0, 100_000_000),
     criadoEm: instante(r.criado_em),
     criadoPor: txt(r.criado_por),
+  };
+}
+
+export function atividadeParaRegistro(a: Atividade): Registro {
+  return { id: a.id, quando: a.quando, quem: a.quem, tipo: a.tipo, resumo: a.resumo.slice(0, 400), mudancas: a.mudancas, alvo: a.alvo.slice(0, 60) };
+}
+
+export function registroParaAtividade(r: Registro): Atividade {
+  const mudancas = Array.isArray(r.mudancas)
+    ? (r.mudancas as unknown[]).flatMap((m): Mudanca[] => {
+        if (!m || typeof m !== "object") return [];
+        const x = m as Record<string, unknown>;
+        return [{ campo: txt(x.campo), de: txt(x.de), para: txt(x.para) }];
+      })
+    : [];
+  return {
+    id: txt(r.id),
+    quando: instante(r.quando),
+    quem: pessoa(r.quem),
+    tipo: txt(r.tipo) as TipoAtividade,
+    resumo: txt(r.resumo),
+    mudancas,
+    alvo: txt(r.alvo),
   };
 }

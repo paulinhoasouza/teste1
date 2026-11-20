@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  CalendarCheck, CalendarPlus, ChartColumn, Check, ChevronLeft, ChevronRight, Ellipsis, House, List, LogOut, Plus, Repeat,
+  CalendarCheck, CalendarPlus, ChartColumn, Check, ChevronLeft, ChevronRight, Ellipsis, History, House, List, LogOut, Plus, Repeat,
   Search, Settings, Undo2, Users, X,
   type LucideIcon,
 } from "lucide-react";
@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { mesDe, nomeDoMes, somarMeses } from "@/lib/datas";
 import { fixasDoMes } from "@/lib/dominio";
+import { contarNovas, marcarAtividadeVista, ultimaVistaDaAtividade } from "@/lib/vista";
 import { AjusteDeVidro, ReguaDeVidro, TemaRapido, TrocaDeTema } from "./aparencia";
 import { BoasVindas } from "./boas-vindas";
 import { FormFixa } from "./form-fixa";
@@ -37,14 +38,15 @@ const ORGANIZAR: Destino[] = [
   { href: "/assinaturas", rotulo: "Assinaturas", Icone: Repeat, cor: "#8944ab" },
 ];
 const AJUSTES: Destino = { href: "/ajustes", rotulo: "Ajustes", Icone: Settings, cor: "#636366" };
-const TODOS = [...VISAO, ...ORGANIZAR, AJUSTES];
+const ATIVIDADE: Destino = { href: "/atividade", rotulo: "Atividade", Icone: History, cor: "#5e5ce6" };
+const TODOS = [...VISAO, ...ORGANIZAR, ATIVIDADE, AJUSTES];
 /** Ordem da barra de cima: o dia a dia primeiro, depois o que se organiza uma vez. */
 const BARRA = [VISAO[0]!, ORGANIZAR[0]!, VISAO[1]!, VISAO[2]!, ORGANIZAR[1]!, ORGANIZAR[2]!];
 /** No celular, o que não cabe na barra de abas vai para "Mais". */
-const NO_MAIS = ["/casal", "/fixas", "/assinaturas", "/ajustes"];
+const NO_MAIS = ["/casal", "/fixas", "/assinaturas", "/atividade", "/ajustes"];
 
 export function Casca({ children }: { children: ReactNode }) {
-  const { dados, nomes, mes, hoje, setMes, abrirLancamento, abrirFixa } = useApp();
+  const { dados, nomes, mes, hoje, quem, setMes, abrirLancamento, abrirFixa } = useApp();
   const caminho = usePathname();
   const roteador = useRouter();
   const [maisAberto, setMaisAberto] = useState(false);
@@ -94,6 +96,23 @@ export function Casca({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // O que a outra pessoa fez desde a última vez que esta abriu a Atividade.
+  const [vista, setVista] = useState("");
+  useEffect(() => {
+    const ler = () => {
+      if (!ultimaVistaDaAtividade(quem)) marcarAtividadeVista(quem);
+      setVista(ultimaVistaDaAtividade(quem));
+    };
+    ler();
+    window.addEventListener("atividade-vista", ler);
+    window.addEventListener("storage", ler);
+    return () => {
+      window.removeEventListener("atividade-vista", ler);
+      window.removeEventListener("storage", ler);
+    };
+  }, [quem]);
+  const novas = caminho === "/atividade" ? 0 : contarNovas(dados.atividades ?? [], quem, vista);
+
   // Contas e assinaturas que ainda faltam pagar no mês aberto: viram selos na barra.
   const faltam = useMemo(() => {
     const abertas = fixasDoMes(dados.fixas, dados.lancamentos, mes, hoje).filter(
@@ -104,6 +123,7 @@ export function Casca({ children }: { children: ReactNode }) {
       "/assinaturas": abertas.filter((c) => c.fixa.natureza === "assinatura").length,
     } as Record<string, number>;
   }, [dados.fixas, dados.lancamentos, mes, hoje]);
+  const selos: Record<string, number> = { ...faltam, "/atividade": novas };
 
   // Posição da pílula: a aba ativa no celular ("Mais" cobre o que não cabe na barra).
   const indiceAba = maisAberto || NO_MAIS.includes(destino)
@@ -148,6 +168,16 @@ export function Casca({ children }: { children: ReactNode }) {
         </nav>
         <div className="topo-fim">
           <span className="so-largo"><AjusteDeVidro /></span>
+          <Link
+            href="/atividade"
+            className="icone-botao botao-atividade"
+            aria-current={atual("/atividade")}
+            aria-label={novas ? `Atividade, ${novas} ${novas === 1 ? "novidade" : "novidades"} de ${nomes[quem === "a" ? "b" : "a"]}` : "Atividade"}
+            title="Atividade"
+          >
+            <History size={18} strokeWidth={1.75} />
+            {novas ? <span className="selo selo-canto" aria-hidden="true">{novas > 99 ? "99+" : novas}</span> : null}
+          </Link>
           <TrocaDeTema />
           <MenuQuem />
         </div>
@@ -239,7 +269,7 @@ export function Casca({ children }: { children: ReactNode }) {
                   <Icone size={17} strokeWidth={2} />
                 </span>
                 {rotulo}
-                {faltam[href] ? <span className="selo">{faltam[href]}</span> : null}
+                {selos[href] ? <span className="selo">{selos[href]}</span> : null}
                 <ChevronRight className="seta" size={18} strokeWidth={2} />
               </Link>
             ))}

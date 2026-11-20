@@ -3,7 +3,8 @@ import { dataNoMes, diaDe, mesDe, somarMeses } from "../datas";
 import { expandirParcelas, fixaNoMes, saldoCasal } from "../dominio";
 import { CATEGORIAS_INICIAIS } from "../padroes";
 import { simular } from "../salario";
-import type { Dados, Dono, Fixa, Lancamento, PessoaId } from "../tipos";
+import { descrever } from "../atividade";
+import type { Atividade, Dados, Dono, Fixa, Lancamento, PessoaId } from "../tipos";
 
 /** Dados de exemplo, sempre relativos ao dia de hoje. Nada aqui é gravado. */
 
@@ -155,12 +156,66 @@ export function dadosDeDemonstracao(hojeData: string): Dados {
     }
   }
 
-  return {
+  const dados: Dados = {
     demo: true,
     config: { nomeA: "Paulo", nomeB: "Giovana", corA: "azul", corB: "laranja", parteAPadrao: 50 },
     categorias: CATEGORIAS_INICIAIS.map((c) => ({ ...c, orcamento: ORCAMENTOS[c.id] ?? 0 })),
     fixas: FIXAS,
     lancamentos,
     comprovantes: [],
+    atividades: [],
   };
+  return { ...dados, atividades: historicoDeExemplo(dados, hojeData) };
+}
+
+/** Um histórico plausível para a demonstração: os últimos lançamentos, duas correções e uma exclusão. */
+function historicoDeExemplo(d: Dados, hojeData: string): Atividade[] {
+  const recentes = d.lancamentos
+    .filter((l) => l.data <= hojeData && !(l.parcela && l.parcela !== "1/10"))
+    .sort((a, b) => b.data.localeCompare(a.data))
+    .slice(0, 24);
+  const vazio: Dados = { ...d, lancamentos: [] };
+  const lista: Atividade[] = [];
+  let n = 0;
+  const id = () => (++n).toString(16).padStart(16, "d");
+  const hora = (data: string, h: number) => `${data}T${String(h).padStart(2, "0")}:${String((n * 7) % 60).padStart(2, "0")}:00.000Z`;
+
+  for (const [i, l] of recentes.entries()) {
+    const quando = hora(l.data, 11 + (i % 10));
+    const grupo = l.grupo ? d.lancamentos.filter((x) => x.grupo === l.grupo) : [l];
+    const a = descrever(
+      { acao: "lancamento.criar" },
+      vazio,
+      { lancamentos: { salvar: grupo } },
+      { id: id(), quando, quem: l.criadoPor === "b" ? "b" : "a" },
+    );
+    if (a) lista.push(a);
+  }
+
+  // A Giovana corrigiu o valor de uma feira; o Paulo mudou a categoria de um gasto.
+  const feira = recentes.find((l) => l.descricao.startsWith("Feira"));
+  if (feira) {
+    const a = descrever({ acao: "lancamento.editar" }, { ...d, lancamentos: [{ ...feira, valor: feira.valor - 1250 }] }, { lancamentos: { salvar: [feira] } },
+      { id: id(), quando: hora(feira.data, 21), quem: "b" });
+    if (a) lista.push(a);
+  }
+  const tenis = recentes.find((l) => l.categoria === "compras" && !l.grupo);
+  if (tenis) {
+    const a = descrever({ acao: "lancamento.editar" }, { ...d, lancamentos: [{ ...tenis, categoria: "lazer" }] }, { lancamentos: { salvar: [tenis] } },
+      { id: id(), quando: hora(tenis.data, 22), quem: "a" });
+    if (a) lista.push(a);
+  }
+  const ontem = recentes[3];
+  if (ontem) {
+    const apagado: Lancamento = { ...ontem, id: "demo-apagado", descricao: "Café duplicado", valor: 1290, categoria: "restaurantes", fixaId: "", mesRef: "", grupo: "", parcela: "" };
+    const a = descrever({ acao: "lancamento.remover" }, { ...d, lancamentos: [apagado] }, { lancamentos: { remover: [apagado.id] } },
+      { id: id(), quando: hora(ontem.data, 23), quem: "a" });
+    if (a) lista.push(a);
+  }
+  // Nada no futuro: o que seria de hoje mais tarde fica em minutos antes de agora.
+  const agora = Date.now();
+  return lista
+    .sort((a, b) => b.quando.localeCompare(a.quando))
+    .map((a, i) => (Date.parse(a.quando) < agora ? a : { ...a, quando: new Date(agora - (i + 1) * 9 * 60_000).toISOString() }))
+    .sort((a, b) => b.quando.localeCompare(a.quando));
 }

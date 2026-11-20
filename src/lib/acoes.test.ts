@@ -10,6 +10,7 @@ function base(p: Partial<Dados> = {}): Dados {
   return {
     demo: false,
     comprovantes: [],
+    atividades: [],
     config: { nomeA: "Paulo", nomeB: "Bia", corA: "azul", corB: "laranja", parteAPadrao: 50 },
     categorias: [
       { id: "mercado", nome: "Mercado", tipo: "despesa", orcamento: 0, ordem: 1, arquivada: false },

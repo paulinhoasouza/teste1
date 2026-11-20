@@ -90,6 +90,36 @@ export interface Comprovante {
   criadoPor: string;
 }
 
+export type TipoAtividade =
+  | "lancamento.criar" | "lancamento.editar" | "lancamento.remover"
+  | "conta.pagar" | "salario.confirmar"
+  | "fixa.criar" | "fixa.editar" | "fixa.remover"
+  | "assinatura.criar" | "assinatura.editar" | "assinatura.remover"
+  | "categoria.criar" | "categoria.editar"
+  | "ajustes.editar"
+  | "comprovante.anexar" | "comprovante.apagar"
+  | "acesso.entrar" | "acesso.sair" | "acesso.senha";
+
+/** Um campo que mudou. Em criações e exclusões, `de` ou `para` fica vazio. */
+export interface Mudanca {
+  campo: string;
+  de: string;
+  para: string;
+}
+
+/** Uma ação de alguém no app, guardada para sempre, com o texto pronto no momento em que aconteceu. */
+export interface Atividade {
+  id: string;
+  quando: string;
+  quem: PessoaId;
+  tipo: TipoAtividade;
+  /** Começa pelo verbo, sem a pessoa: "lançou Feira, R$ 92,10". */
+  resumo: string;
+  mudancas: Mudanca[];
+  /** Lançamento (ou grupo de parcelas), conta fixa ou categoria a que se refere. */
+  alvo: string;
+}
+
 export interface Dados {
   demo: boolean;
   config: Config;
@@ -97,4 +127,6 @@ export interface Dados {
   fixas: Fixa[];
   lancamentos: Lancamento[];
   comprovantes: Comprovante[];
+  /** As mais recentes primeiro; as mais antigas vêm sob demanda. */
+  atividades: Atividade[];
 }

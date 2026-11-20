@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { ErroDeAcao, planejar } from "@/lib/acoes";
 import { carregar, quemEstaUsando } from "@/lib/servidor/acesso";
 import { ErroDeConfiguracao } from "@/lib/servidor/ambiente";
+import { descrever, novoIdDeAtividade } from "@/lib/atividade";
 import { donosOrfaos } from "@/lib/comprovantes";
+import { anotar } from "@/lib/servidor/anotar";
 import { apagarComprovantes, gravar } from "@/lib/servidor/banco";
 
 export const dynamic = "force-dynamic";
@@ -28,9 +30,11 @@ export async function POST(req: Request) {
       ...dados.lancamentos.flatMap((l) => [l.id, l.grupo]),
       ...dados.fixas.map((f) => f.id),
     ]);
+    const quem = await quemEstaUsando();
+    const agora = new Date().toISOString();
     const patch = planejar(corpo.acao, dados, {
-      quem: await quemEstaUsando(),
-      agora: new Date().toISOString(),
+      quem,
+      agora,
       novoId: () => {
         let id = propostos.shift();
         while (!id || usados.has(id)) id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
@@ -45,6 +49,7 @@ export async function POST(req: Request) {
       if (orfaos.length) {
         await apagarComprovantes(cred, { donos: orfaos }).catch((e) => console.error("Comprovantes órfãos ficaram", e));
       }
+      await anotar(cred, descrever(corpo.acao, dados, patch, { id: novoIdDeAtividade(), quando: agora, quem }));
     }
     return NextResponse.json({ patch });
   } catch (e) {

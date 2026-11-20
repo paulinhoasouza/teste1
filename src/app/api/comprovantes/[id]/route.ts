@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
+import { descreverComprovante, novoIdDeAtividade } from "@/lib/atividade";
 import { TIPOS_ACEITOS } from "@/lib/comprovantes";
+import { carregar, quemEstaUsando } from "@/lib/servidor/acesso";
 import { ErroDeConfiguracao, credenciais } from "@/lib/servidor/ambiente";
+import { anotar } from "@/lib/servidor/anotar";
 import { apagarComprovantes, lerArquivo } from "@/lib/servidor/banco";
 
 export const dynamic = "force-dynamic";
@@ -43,9 +46,15 @@ export async function DELETE(_req: Request, { params }: Params) {
   const { id } = await params;
   if (!ID.test(id)) return NextResponse.json({ erro: "Comprovante inválido." }, { status: 400 });
   try {
-    const cred = credenciais();
+    const { dados, cred } = await carregar();
     if (!cred) return NextResponse.json({ erro: "Ligue o banco de dados para guardar comprovantes." }, { status: 503 });
+    const comprovante = dados.comprovantes.find((c) => c.id === id);
     await apagarComprovantes(cred, { ids: [id] });
+    if (comprovante) {
+      await anotar(cred, descreverComprovante("apagar", comprovante, dados, {
+        id: novoIdDeAtividade(), quando: new Date().toISOString(), quem: await quemEstaUsando(),
+      }));
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof ErroDeConfiguracao) return NextResponse.json({ erro: e.message }, { status: 503 });

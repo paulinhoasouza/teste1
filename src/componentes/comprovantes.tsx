@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Download, ExternalLink, FileText, Paperclip, Trash2, X } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Download, ExternalLink, FileText, Paperclip, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ehImagem, MAXIMO_POR_LANCAMENTO, tamanhoLegivel } from "@/lib/comprovantes";
 import type { Comprovante } from "@/lib/tipos";
@@ -39,6 +39,7 @@ export function AreaDeComprovantes({
   const { urlDoComprovante } = useApp();
   const [aberto, setAberto] = useState<number | null>(null);
   const entrada = useRef<HTMLInputElement>(null);
+  const camera = useRef<HTMLInputElement>(null);
   const total = existentes.length + pendentes.length + enviando;
   const cabe = total < MAXIMO_POR_LANCAMENTO;
 
@@ -81,20 +82,46 @@ export function AreaDeComprovantes({
           </li>
         ))}
         {cabe ? (
-          <li>
-            <button type="button" className="anexo anexo-novo" onClick={() => entrada.current?.click()}>
-              <Paperclip size={18} strokeWidth={1.75} />
-              <span>{total === 0 ? "Anexar" : "Mais"}</span>
-            </button>
-          </li>
+          <>
+            {/* Só em aparelho com câmera de toque; no computador o navegador abriria a mesma janela de arquivos. */}
+            <li className="so-toque">
+              <button type="button" className="anexo anexo-novo" onClick={() => camera.current?.click()}>
+                <Camera size={19} strokeWidth={1.75} />
+                <span>Tirar foto</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" className="anexo anexo-novo" onClick={() => entrada.current?.click()}>
+                <Paperclip size={18} strokeWidth={1.75} />
+                <span className="so-toque-texto">Arquivo</span>
+                <span className="so-mouse-texto">{total === 0 ? "Anexar" : "Mais"}</span>
+              </button>
+            </li>
+          </>
         ) : null}
       </ul>
+      {/* Câmera: abre direto para fotografar a nota, com a câmera de trás. */}
+      <input
+        ref={camera}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        hidden
+        aria-label="Tirar foto do comprovante"
+        onChange={(e) => {
+          const lista = Array.from(e.target.files ?? []).slice(0, MAXIMO_POR_LANCAMENTO - total);
+          e.target.value = "";
+          if (lista.length) aoEscolher(lista);
+        }}
+      />
+      {/* Arquivo: galeria de fotos, arquivos do aparelho ou PDF. */}
       <input
         ref={entrada}
         type="file"
         accept={ACEITOS}
         multiple
         hidden
+        aria-label="Escolher arquivo do comprovante"
         onChange={(e) => {
           const lista = Array.from(e.target.files ?? []).slice(0, MAXIMO_POR_LANCAMENTO - total);
           e.target.value = "";
@@ -104,7 +131,7 @@ export function AreaDeComprovantes({
       <p className="campo-dica">
         {pendentes.length > 0
           ? "Sobe junto quando você salvar o lançamento."
-          : "Foto da nota, do recibo ou o PDF do boleto. As fotos são reduzidas antes de enviar."}
+          : "Fotografe a nota na hora ou escolha uma foto ou PDF já salvo. As fotos são reduzidas antes de enviar."}
       </p>
       {aberto !== null && existentes.length > 0 ? (
         <Visor lista={existentes} inicial={Math.min(aberto, existentes.length - 1)} aoFechar={() => setAberto(null)} />

@@ -15,6 +15,7 @@ class BancoFalso {
     fixas: [],
     config: [{ id: 1, nome_a: "Paulo", nome_b: "Giovana", cor_a: "azul", cor_b: "laranja", parte_a_padrao: 50 }],
     comprovantes: [],
+    atividades: [],
   };
   segredo = "certo";
   pedidos: { metodo: string; caminho: string; cabecalhos: Record<string, string> }[] = [];
@@ -34,7 +35,10 @@ class BancoFalso {
     if (metodo === "GET") {
       if (!autorizado) return json([]);
       const eq = u.searchParams.get("id")?.replace("eq.", "");
-      const base = eq ? linhas.filter((l) => String(l.id) === eq) : [...linhas].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      let base = eq ? linhas.filter((l) => String(l.id) === eq) : [...linhas].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      if (u.searchParams.get("order")?.startsWith("quando.desc")) base.sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+      const antesDe = u.searchParams.get("quando")?.replace("lt.", "");
+      if (antesDe) base = base.filter((l) => String(l.quando) < antesDe);
       const inicio = Number(u.searchParams.get("offset") ?? 0);
       return json(base.slice(inicio, inicio + Number(u.searchParams.get("limit") ?? 1000)));
     }
@@ -84,8 +88,9 @@ describe("banco", () => {
     expect(dados.demo).toBe(false);
     expect(dados.config).toMatchObject({ nomeA: "Paulo", nomeB: "Giovana" });
     expect(dados.categorias.map((c) => c.id)).toEqual(["mercado"]);
-    expect(falso.pedidos).toHaveLength(5);
+    expect(falso.pedidos).toHaveLength(6);
     expect(dados.comprovantes).toEqual([]);
+    expect(dados.atividades).toEqual([]);
     for (const p of falso.pedidos) {
       expect(p.cabecalhos.apikey).toBe("sb_publishable_x");
       expect(p.cabecalhos["x-app-chave"]).toBe("certo");
@@ -118,9 +123,25 @@ describe("banco", () => {
     expect(falso.tabelas.comprovantes!.map((c) => c.id)).toEqual(["abcdef0123456780"]);
   });
 
+  it("registra atividades e lê da mais nova para a mais antiga, página por página", async () => {
+    const { lerAtividades, lerDados, registrarAtividade } = await import("./banco");
+    for (const [i, quando] of ["2026-11-18T10:00:00.000Z", "2026-11-20T09:00:00.000Z", "2026-11-19T12:00:00.000Z"].entries()) {
+      await registrarAtividade(cred, {
+        id: `aaaaaaaaaaaaaaa${i}`, quando, quem: i === 1 ? "b" : "a", tipo: "lancamento.editar", resumo: `alterou ${i}`,
+        mudancas: [{ campo: "Valor", de: "R$ 1,00", para: "R$ 2,00" }], alvo: "x",
+      });
+    }
+    const dados = await lerDados(cred);
+    expect(dados.atividades.map((a) => a.resumo)).toEqual(["alterou 1", "alterou 2", "alterou 0"]);
+    expect(dados.atividades[0]).toMatchObject({ quem: "b", mudancas: [{ campo: "Valor", de: "R$ 1,00", para: "R$ 2,00" }] });
+    const antigas = await lerAtividades(cred, { antes: "2026-11-19T12:00:00.000Z", limite: 10 });
+    expect(antigas.map((a) => a.resumo)).toEqual(["alterou 0"]);
+  });
+
   it("sem a tabela de comprovantes, o resto continua abrindo", async () => {
     const { lerDados } = await import("./banco");
     delete falso.tabelas.comprovantes;
+    delete falso.tabelas.atividades;
     const dados = await lerDados(cred);
     expect(dados.comprovantes).toEqual([]);
     expect(dados.categorias).toHaveLength(1);

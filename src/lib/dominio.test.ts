@@ -65,6 +65,7 @@ function dados(p: Partial<Dados>): Dados {
   return {
     demo: false,
     comprovantes: [],
+    atividades: [],
     config: { nomeA: "Paulo", nomeB: "Bia", corA: "azul", corB: "laranja", parteAPadrao: 50 },
     categorias: [
       { id: "mercado", nome: "Mercado", tipo: "despesa", orcamento: 80000, ordem: 1, arquivada: false },

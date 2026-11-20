@@ -5,9 +5,10 @@ import useSWR from "swr";
 import { ErroDeAcao, aplicar, planejar, type Acao, type Patch } from "@/lib/acoes";
 import { hoje as hojeAgora, mesDe } from "@/lib/datas";
 import type { FixaDoMes } from "@/lib/dominio";
+import { descrever, descreverComprovante, novoIdDeAtividade } from "@/lib/atividade";
 import { TAMANHO_MAXIMO, tamanhoLegivel } from "@/lib/comprovantes";
 import type {
-  Comprovante, Dados, Dono, Fixa, Lancamento, Natureza, PessoaId, TipoCategoria, TipoLancamento,
+  Atividade, Comprovante, Dados, Dono, Fixa, Lancamento, Natureza, PessoaId, TipoCategoria, TipoLancamento,
 } from "@/lib/tipos";
 import { prepararArquivo } from "./preparar-arquivo";
 
@@ -61,7 +62,13 @@ async function buscar(url: string): Promise<Dados> {
     throw new ErroDeRede(j.erro ?? "Não foi possível carregar os dados.");
   }
   const d = (await r.json()) as Dados;
-  return { ...d, comprovantes: d.comprovantes ?? [] };
+  return { ...d, comprovantes: d.comprovantes ?? [], atividades: d.atividades ?? [] };
+}
+
+/** Põe a atividade no topo do histórico da tela, sem repetir. */
+function anotarNaTela(d: Dados, a: Atividade | null): Dados {
+  if (!a) return d;
+  return { ...d, atividades: [a, ...(d.atividades ?? []).filter((x) => x.id !== a.id)] };
 }
 
 /** Em demonstração, os arquivos ficam só nesta aba. */
@@ -144,9 +151,12 @@ export function Provedor({
         avisar(e instanceof ErroDeAcao ? e.message : "Não foi possível fazer isso.");
         return false;
       }
+      // O histórico mostra na hora; o servidor grava o dele e a próxima leitura substitui este.
+      const atividade = descrever(acao, dadosRef.current, patch, { id: novoIdDeAtividade(), quando: new Date().toISOString(), quem });
+      const depois = (d: Dados) => anotarNaTela(aplicar(d, patch), atividade);
       if (demo) {
         // Demonstração: nada vai ao servidor; a mudança vive só nesta aba.
-        await mutate((atual) => aplicar(atual ?? dadosRef.current, patch), { revalidate: false });
+        await mutate((atual) => depois(atual ?? dadosRef.current), { revalidate: false });
         if (feito) avisar(feito);
         aoGravar?.(ids);
         return true;
@@ -164,10 +174,10 @@ export function Provedor({
               const j = (await r.json().catch(() => ({}))) as { erro?: string };
               throw new ErroDeRede(j.erro ?? "Não foi possível gravar. Nada foi alterado.");
             }
-            return aplicar(atual ?? dadosRef.current, patch);
+            return depois(atual ?? dadosRef.current);
           },
           {
-            optimisticData: (atual) => aplicar(atual ?? dadosRef.current, patch),
+            optimisticData: (atual) => depois(atual ?? dadosRef.current),
             rollbackOnError: true,
             revalidate: true,
           },
@@ -220,7 +230,8 @@ export function Provedor({
         }
         await mutate((atual) => {
           const d = atual ?? dadosRef.current;
-          return { ...d, comprovantes: [...(d.comprovantes ?? []), comprovante] };
+          const nota = descreverComprovante("anexar", comprovante, d, { id: novoIdDeAtividade(), quando: new Date().toISOString(), quem });
+          return anotarNaTela({ ...d, comprovantes: [...(d.comprovantes ?? []), comprovante] }, nota);
         }, { revalidate: false });
         enviados++;
       }
@@ -231,7 +242,11 @@ export function Provedor({
 
   const apagarComprovante = useCallback(
     async (c: Comprovante) => {
-      const tirar = (d: Dados) => ({ ...d, comprovantes: (d.comprovantes ?? []).filter((x) => x.id !== c.id) });
+      const tirar = (d: Dados) =>
+        anotarNaTela(
+          { ...d, comprovantes: (d.comprovantes ?? []).filter((x) => x.id !== c.id) },
+          descreverComprovante("apagar", c, d, { id: `apagar${c.id}`.slice(0, 32), quando: new Date().toISOString(), quem }),
+        );
       if (demo) {
         await mutate((atual) => tirar(atual ?? dadosRef.current), { revalidate: false });
         avisar("Comprovante apagado");
@@ -257,7 +272,7 @@ export function Provedor({
         return false;
       }
     },
-    [avisar, demo, mutate],
+    [avisar, demo, mutate, quem],
   );
 
   const urlDoComprovante = useCallback(

@@ -2,15 +2,17 @@ import "server-only";
 import { ErroDeAcao, type Patch } from "../acoes";
 import {
   categoriaParaRegistro, configParaRegistro, fixaParaRegistro, lancamentoParaRegistro,
-  registroParaCategoria, registroParaComprovante, registroParaConfig, registroParaFixa, registroParaLancamento,
+  atividadeParaRegistro, registroParaAtividade, registroParaCategoria, registroParaComprovante, registroParaConfig, registroParaFixa, registroParaLancamento,
   type Registro,
 } from "../registros";
-import type { Comprovante, Dados, PessoaId } from "../tipos";
+import type { Atividade, Comprovante, Dados, PessoaId } from "../tipos";
 import { ErroDeConfiguracao, type Credenciais } from "./ambiente";
 
 /** Acesso ao Postgres do Supabase pela API de dados (PostgREST). */
 
 type Tabela = "lancamentos" | "categorias" | "fixas" | "config" | "comprovantes";
+/** Quantas atividades vêm junto com os dados; as mais antigas, pela rota de atividades. */
+export const ATIVIDADES_RECENTES = 200;
 const MAXIMO_DE_FALHAS = 5;
 const MINUTOS_DE_BLOQUEIO = 15;
 const PAGINA = 1000;
@@ -51,12 +53,13 @@ async function lerTudo(c: Credenciais, tabela: Tabela, colunas = "*"): Promise<R
 }
 
 export async function lerDados(c: Credenciais): Promise<Dados> {
-  const [lancamentos, categorias, fixas, config, comprovantes] = await Promise.all([
+  const [lancamentos, categorias, fixas, config, comprovantes, atividades] = await Promise.all([
     lerTudo(c, "lancamentos"),
     lerTudo(c, "categorias"),
     lerTudo(c, "fixas"),
     lerTudo(c, "config"),
     lerComprovantes(c),
+    lerAtividades(c, { limite: ATIVIDADES_RECENTES }),
   ]);
   // A linha de configuração sempre existe; se sumiu, o banco está escondendo tudo.
   if (!config[0]) {
@@ -69,7 +72,28 @@ export async function lerDados(c: Credenciais): Promise<Dados> {
     fixas: fixas.map(registroParaFixa),
     config: registroParaConfig(config[0]),
     comprovantes,
+    atividades,
   };
+}
+
+/** As mais recentes primeiro; `antes` pega as anteriores a um instante. Sem a tabela, volta vazio. */
+export async function lerAtividades(c: Credenciais, { antes, limite }: { antes?: string; limite: number }): Promise<Atividade[]> {
+  const filtro = antes ? `&quando=lt.${encodeURIComponent(antes)}` : "";
+  try {
+    const r = await pedir(c, `atividades?select=*&order=quando.desc,id.desc&limit=${limite}${filtro}`);
+    return ((await r.json()) as Registro[]).map(registroParaAtividade);
+  } catch (e) {
+    if (e instanceof ErroDeConfiguracao) return [];
+    throw e;
+  }
+}
+
+export async function registrarAtividade(c: Credenciais, a: Atividade): Promise<void> {
+  await pedir(c, "atividades", {
+    method: "POST",
+    headers: { prefer: "return=minimal" },
+    body: JSON.stringify(atividadeParaRegistro(a)),
+  });
 }
 
 /** A lista de comprovantes, sem o conteúdo. Se a tabela ainda não existe, o resto do app segue funcionando. */

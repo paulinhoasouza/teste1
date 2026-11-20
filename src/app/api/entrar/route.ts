@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { descreverAcesso, novoIdDeAtividade } from "@/lib/atividade";
 import { ErroDeConfiguracao, credenciais } from "@/lib/servidor/ambiente";
+import { anotar } from "@/lib/servidor/anotar";
 import { buscarUsuario, registrarEntrada, registrarFalha } from "@/lib/servidor/banco";
 import { HASH_DE_ENCHIMENTO, conferirSenha } from "@/lib/servidor/senha";
 import { COOKIE_SESSAO, DURACAO_SEGUNDOS, criarSessao } from "@/lib/servidor/sessao";
@@ -43,6 +45,7 @@ export async function POST(req: Request) {
     }
 
     await registrarEntrada(cred, usuario);
+    await anotar(cred, descreverAcesso("acesso.entrar", { id: novoIdDeAtividade(), quando: agora.toISOString(), quem: usuario.pessoa }));
     const resposta = NextResponse.json({ ok: true });
     resposta.cookies.set(COOKIE_SESSAO, await criarSessao(usuario.pessoa), {
       httpOnly: true,

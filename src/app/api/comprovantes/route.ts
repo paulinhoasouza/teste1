@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { descreverComprovante, novoIdDeAtividade } from "@/lib/atividade";
 import { donoDoComprovante, MAXIMO_POR_LANCAMENTO, reconhecer, TAMANHO_MAXIMO } from "@/lib/comprovantes";
 import { carregar, quemEstaUsando } from "@/lib/servidor/acesso";
 import { ErroDeConfiguracao } from "@/lib/servidor/ambiente";
+import { anotar } from "@/lib/servidor/anotar";
 import { guardarComprovante } from "@/lib/servidor/banco";
 import type { Comprovante } from "@/lib/tipos";
 
@@ -51,6 +53,9 @@ export async function POST(req: Request) {
       criadoPor: await quemEstaUsando(),
     };
     await guardarComprovante(cred, { ...comprovante, conteudo: Buffer.from(bytes).toString("base64") });
+    await anotar(cred, descreverComprovante("anexar", comprovante, dados, {
+      id: novoIdDeAtividade(), quando: comprovante.criadoEm, quem: comprovante.criadoPor === "b" ? "b" : "a",
+    }));
     return NextResponse.json({ comprovante });
   } catch (e) {
     if (e instanceof ErroDeConfiguracao) return NextResponse.json({ erro: e.message }, { status: 503 });
