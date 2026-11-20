@@ -4,7 +4,7 @@ import { CircleCheck, Info, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { IconeAssinatura } from "@/componentes/assinatura";
-import { TrocaMes } from "@/componentes/casca";
+import { TrocaMes, useTituloCompacto } from "@/componentes/casca";
 import { GraficoMensal } from "@/componentes/grafico-mensal";
 import { useNomeDaCategoria } from "@/componentes/linhas";
 import { useApp } from "@/componentes/provedor";
@@ -26,6 +26,7 @@ export default function Relatorio() {
   const nomeDaCategoria = useNomeDaCategoria();
   const [escopo, setEscopo] = useState<Dono>("casal");
   const [periodo, setPeriodo] = useState<Periodo>("1");
+  const refTitulo = useTituloCompacto("Relatório");
 
   const meses = useMemo(() => mesesAte(mes, Number(periodo)), [mes, periodo]);
   // O gráfico mostra pelo menos seis meses, para dar contexto ao período.
@@ -79,7 +80,7 @@ export default function Relatorio() {
     <>
       <div className="titulo junto">
         <div>
-          <h1>Relatório</h1>
+          <h1 ref={refTitulo}>Relatório</h1>
           <p className="titulo-achado">{rotuloPeriodo}, {escopo === "casal" ? "os dois juntos" : `só a parte de ${nomes[escopo]}`}.</p>
         </div>
         <div className="titulo-acoes">

@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { mesDe, nomeDoMes, somarMeses } from "@/lib/datas";
+import { TemaRapido } from "./aparencia";
 import { BoasVindas } from "./boas-vindas";
 import { FormFixa } from "./form-fixa";
 import { Folha } from "./folha";
@@ -42,7 +43,43 @@ export function Casca({ children }: { children: ReactNode }) {
   const { dados, nomes, abrirLancamento } = useApp();
   const caminho = usePathname();
   const [maisAberto, setMaisAberto] = useState(false);
+  const [tituloCompacto, setTituloCompacto] = useState("");
   const { config } = dados;
+
+  // As cores de cada pessoa também na raiz, para os halos do fundo seguirem a escolha em Ajustes.
+  useEffect(() => {
+    const raiz = document.documentElement;
+    raiz.dataset.corA = config.corA;
+    raiz.dataset.corB = config.corB;
+  }, [config.corA, config.corB]);
+
+  // O título grande some ao rolar e reaparece pequeno na barra de cima, como no iOS.
+  useEffect(() => {
+    const ouvir = (e: Event) => setTituloCompacto((e as CustomEvent<string>).detail);
+    window.addEventListener("titulo-compacto", ouvir);
+    return () => window.removeEventListener("titulo-compacto", ouvir);
+  }, []);
+
+  // Realce de luz que acompanha o cursor sobre o vidro dos cartões.
+  useEffect(() => {
+    if (!window.matchMedia("(hover: hover)").matches) return;
+    let quadro = 0;
+    const mover = (e: PointerEvent) => {
+      cancelAnimationFrame(quadro);
+      quadro = requestAnimationFrame(() => {
+        const cartao = (e.target as Element | null)?.closest?.(".cartao") as HTMLElement | null;
+        if (!cartao) return;
+        const r = cartao.getBoundingClientRect();
+        cartao.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        cartao.style.setProperty("--my", `${e.clientY - r.top}px`);
+      });
+    };
+    document.addEventListener("pointermove", mover, { passive: true });
+    return () => {
+      document.removeEventListener("pointermove", mover);
+      cancelAnimationFrame(quadro);
+    };
+  }, []);
 
   if (!config.nomeA || !config.nomeB) {
     return (
@@ -53,6 +90,10 @@ export function Casca({ children }: { children: ReactNode }) {
   }
 
   const atual = (href: string) => (caminho === href ? "page" : undefined);
+  // Posição da lente da aba ativa na barra de baixo.
+  const indiceAba = maisAberto || NO_MAIS.includes(caminho)
+    ? 3
+    : caminho === "/" ? 0 : caminho === "/lancamentos" ? 1 : caminho === "/relatorio" ? 2 : -1;
 
   return (
     <div className="casca" data-cor-a={config.corA} data-cor-b={config.corB}>
@@ -89,6 +130,7 @@ export function Casca({ children }: { children: ReactNode }) {
           <Marca tamanho={30} />
           <span className="marca-nome">A dois</span>
         </Link>
+        <span className={`titulo-compacto ${tituloCompacto ? "visivel" : ""}`} aria-hidden="true">{tituloCompacto}</span>
         <nav className="nav-topo" aria-label="Principal">
           {TODOS.map(({ href, rotulo }) => (
             <Link key={href} href={href} aria-current={atual(href)}>
@@ -112,30 +154,28 @@ export function Casca({ children }: { children: ReactNode }) {
       </main>
 
       <nav className="nav-baixo" aria-label="Principal, no rodapé">
-        {[VISAO[0]!, ORGANIZAR[0]!].map(({ href, rotulo, Icone }) => (
-          <Link key={href} href={href} aria-current={atual(href)}>
-            <Icone size={24} strokeWidth={1.75} />
-            {rotulo}
-          </Link>
-        ))}
+        <div className="abas" style={{ "--aba": Math.max(0, indiceAba) } as React.CSSProperties}>
+          <span className={`aba-lente ${indiceAba < 0 ? "sem-aba" : ""}`} aria-hidden="true" />
+          {[VISAO[0]!, ORGANIZAR[0]!, VISAO[1]!].map(({ href, rotulo, Icone }) => (
+            <Link key={href} href={href} aria-current={atual(href)}>
+              <Icone size={23} strokeWidth={1.75} />
+              {rotulo}
+            </Link>
+          ))}
+          <button
+            type="button"
+            className="aba"
+            aria-haspopup="dialog"
+            aria-expanded={maisAberto}
+            data-ativa={indiceAba === 3}
+            onClick={() => setMaisAberto(true)}
+          >
+            <Ellipsis size={23} strokeWidth={1.75} />
+            Mais
+          </button>
+        </div>
         <button type="button" className="lancar" aria-label="Novo lançamento" onClick={() => abrirLancamento({ modo: "novo" })}>
-          <Plus size={26} strokeWidth={2.25} />
-        </button>
-        <Link href="/relatorio" aria-current={atual("/relatorio")}>
-          <ChartColumn size={24} strokeWidth={1.75} />
-          Relatório
-        </Link>
-        <button
-          type="button"
-          className="aba"
-          aria-haspopup="dialog"
-          aria-expanded={maisAberto}
-          aria-current={NO_MAIS.includes(caminho) ? "page" : undefined}
-          style={NO_MAIS.includes(caminho) ? { color: "var(--accent)" } : undefined}
-          onClick={() => setMaisAberto(true)}
-        >
-          <Ellipsis size={24} strokeWidth={1.75} />
-          Mais
+          <Plus size={28} strokeWidth={2.25} />
         </button>
       </nav>
 
@@ -222,6 +262,9 @@ function MenuQuem({ compacto }: { compacto?: boolean }) {
                   {quem === p ? <Check className="marcado" size={16} strokeWidth={1.75} /> : null}
                 </button>
               ))}
+          {temLogin ? null : <hr />}
+          <TemaRapido />
+          <hr />
           {compacto || temLogin ? (
             <Link href={temLogin ? "/ajustes#conta" : "/ajustes"} role="menuitem" onClick={() => setAberto(false)}>
               <Settings size={18} strokeWidth={1.5} />
@@ -296,10 +339,11 @@ export function Titulo({
   acao?: ReactNode;
 }) {
   const { abrirLancamento } = useApp();
+  const ref = useTituloCompacto(titulo);
   return (
     <div className={`titulo ${mesNoTitulo || semMes ? "junto" : ""}`}>
       <div>
-        <h1>{titulo}</h1>
+        <h1 ref={ref}>{titulo}</h1>
         {achado ? <p className="titulo-achado">{achado}</p> : null}
       </div>
       <div className="titulo-acoes">
@@ -313,4 +357,21 @@ export function Titulo({
       </div>
     </div>
   );
+}
+
+/** Liga o título grande ao título pequeno da barra de cima: quando um sai de vista, o outro aparece. */
+export function useTituloCompacto(texto: string) {
+  const ref = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const avisar = (t: string) => window.dispatchEvent(new CustomEvent("titulo-compacto", { detail: t }));
+    const obs = new IntersectionObserver(([e]) => avisar(e!.isIntersecting ? "" : texto), { rootMargin: "-54px 0px 0px 0px" });
+    obs.observe(el);
+    return () => {
+      obs.disconnect();
+      avisar("");
+    };
+  }, [texto]);
+  return ref;
 }

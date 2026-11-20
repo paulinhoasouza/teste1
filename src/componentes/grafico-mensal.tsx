@@ -82,7 +82,7 @@ export function GraficoMensal({ serie, mesAtual }: { serie: MesDoRelatorio[]; me
           const indiceMes = Number(m.mes.slice(5, 7)) - 1;
           const traco = Math.min(faixa * 0.78, larguraBarra + 18);
           return (
-            <g key={m.mes} className={`mes-grupo ${foco !== null && foco !== i ? "apagado" : ""}`}>
+            <g key={m.mes} className={`mes-grupo ${foco !== null && foco !== i ? "apagado" : ""}`} style={{ "--i": i } as React.CSSProperties}>
               <path className="saida" d={barra(centro - larguraBarra / 2, y(m.saidas), larguraBarra, y(0) - y(m.saidas), 4)} />
               {m.renda > 0 ? (
                 <line

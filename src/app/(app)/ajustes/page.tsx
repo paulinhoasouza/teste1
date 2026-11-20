@@ -3,6 +3,7 @@
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Titulo } from "@/componentes/casca";
+import { EscolhaDeAparencia } from "@/componentes/aparencia";
 import { CampoValor } from "@/componentes/campos";
 import { useApp } from "@/componentes/provedor";
 import { formatar } from "@/lib/dinheiro";
@@ -31,6 +32,16 @@ export default function Ajustes() {
   return (
     <>
       <Titulo titulo="Ajustes" achado="Cada mudança é salva na hora." semMes acao={<span />} />
+
+      <section className="secao" aria-labelledby="s-aparencia">
+        <div className="secao-rotulo">
+          <h2 id="s-aparencia">Aparência</h2>
+          <p>Automático segue o modo do seu celular ou computador. A escolha fica guardada neste aparelho.</p>
+        </div>
+        <div className="painel">
+          <EscolhaDeAparencia />
+        </div>
+      </section>
 
       <section className="secao" aria-labelledby="s-voces">
         <div className="secao-rotulo">

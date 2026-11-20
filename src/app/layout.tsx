@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/inter";
 import "./globals.css";
+import { SCRIPT_DE_TEMA } from "@/lib/tema";
 
 export const metadata: Metadata = {
   title: { default: "A dois", template: "%s · A dois" },
@@ -12,16 +14,24 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f2f2f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
 };
 
 export default function Raiz({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body>{children}</body>
+    // O script do tema muda atributos do <html> antes da hidratação.
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <meta name="theme-color" content="#f5f5f7" />
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_DE_TEMA }} />
+      </head>
+      <body>
+        <div className="ambiente" aria-hidden="true">
+          <span className="halo-a" />
+          <span className="halo-b" />
+          <span className="halo-encontro" />
+        </div>
+        {children}
+      </body>
     </html>
   );
 }

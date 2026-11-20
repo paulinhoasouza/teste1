@@ -1,5 +1,8 @@
 "use client";
 
+import { animate } from "motion";
+import { useEffect, useRef } from "react";
+
 import type { ReactNode } from "react";
 import { formatar, partesBRL } from "@/lib/dinheiro";
 import type { Dono, PessoaId } from "@/lib/tipos";
@@ -42,14 +45,37 @@ export function MarcaDono({ dono, nomes }: { dono: Dono; nomes: Record<PessoaId,
   );
 }
 
-/** Valor com os centavos menores, para os números grandes. */
+/**
+ * Valor com os centavos menores, para os números grandes.
+ * Quando o valor muda (outro mês, outra pessoa), os dígitos rolam até o novo número com uma mola.
+ */
 export function Valor({ centavos, className = "" }: { centavos: number; className?: string }) {
+  const inteiro = useRef<HTMLSpanElement>(null);
+  const cent = useRef<HTMLSpanElement>(null);
+  const anterior = useRef(centavos);
   const p = partesBRL(centavos);
+
+  useEffect(() => {
+    const de = anterior.current;
+    anterior.current = centavos;
+    if (de === centavos || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const escrever = (v: number) => {
+      const q = partesBRL(Math.round(v));
+      if (inteiro.current) inteiro.current.textContent = `${q.sinal}R$ ${q.inteiro}`;
+      if (cent.current) cent.current.textContent = `,${q.centavos}`;
+    };
+    const controle = animate(de, centavos, { type: "spring", bounce: 0, duration: 0.7, onUpdate: escrever });
+    return () => {
+      controle.stop();
+      escrever(centavos);
+    };
+  }, [centavos]);
+
   return (
     <span className={`num ${className}`} aria-label={formatar(centavos)}>
       <span aria-hidden="true">
-        {p.sinal}R$ {p.inteiro}
-        <span className="cent">,{p.centavos}</span>
+        <span ref={inteiro}>{p.sinal}R$ {p.inteiro}</span>
+        <span className="cent" ref={cent}>,{p.centavos}</span>
       </span>
     </span>
   );
