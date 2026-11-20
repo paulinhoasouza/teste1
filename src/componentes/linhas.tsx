@@ -1,5 +1,7 @@
 "use client";
 
+import { Paperclip } from "lucide-react";
+import { comprovantesDe } from "@/lib/comprovantes";
 import { formatar } from "@/lib/dinheiro";
 import { diaDe, nomeDoMes } from "@/lib/datas";
 import { outra, type FixaDoMes, type Parcelamento } from "@/lib/dominio";
@@ -14,8 +16,9 @@ export function useNomeDaCategoria(): (id: string) => string {
 
 /** Uma linha de lançamento; tocar abre a edição. */
 export function LinhaLancamento({ l, comData }: { l: Lancamento; comData?: boolean }) {
-  const { nomes, abrirLancamento } = useApp();
+  const { dados, nomes, abrirLancamento } = useApp();
   const categoria = useNomeDaCategoria();
+  const anexos = comprovantesDe(dados.comprovantes ?? [], l).length;
 
   let titulo = l.descricao || categoria(l.categoria);
   let detalhe = categoria(l.categoria);
@@ -35,7 +38,7 @@ export function LinhaLancamento({ l, comData }: { l: Lancamento; comData?: boole
       <button
         type="button"
         className="linha"
-        aria-label={`${titulo}, ${formatar(l.valor)}, ${dono}. Editar`}
+        aria-label={`${titulo}, ${formatar(l.valor)}, ${dono}${anexos ? `, ${anexos === 1 ? "1 comprovante" : `${anexos} comprovantes`}` : ""}. Editar`}
         onClick={() => abrirLancamento({ modo: "editar", lancamento: l })}
       >
         {l.tipo === "acerto" ? <Avatar pessoa={l.pagoPor} nome={nomes[l.pagoPor]} /> : <MarcaDono dono={l.deQuem} nomes={nomes} />}
@@ -43,6 +46,7 @@ export function LinhaLancamento({ l, comData }: { l: Lancamento; comData?: boole
           <span className="linha-l1">
             <span>{titulo}</span>
             {l.parcela ? <span className="pilula">{l.parcela}</span> : null}
+            {anexos ? <ClipeDeAnexos n={anexos} /> : null}
           </span>
           <span className="linha-l2" style={{ display: "block" }}>{detalhe}</span>
         </span>
@@ -55,8 +59,21 @@ export function LinhaLancamento({ l, comData }: { l: Lancamento; comData?: boole
   );
 }
 
+/** Clipe com a quantidade, ao lado do nome: este lançamento tem comprovante. */
+export function ClipeDeAnexos({ n }: { n: number }) {
+  return (
+    <span className="clipe" aria-hidden="true">
+      <Paperclip size={13} strokeWidth={2} />
+      {n > 1 ? n : null}
+    </span>
+  );
+}
+
 export function LinhaConta({ c }: { c: FixaDoMes }) {
-  const { abrirLancamento, abrirFixa } = useApp();
+  const { dados, abrirLancamento, abrirFixa } = useApp();
+  // Conta paga: tocar no "Paga" abre o pagamento, onde dá para ver ou anexar o comprovante.
+  const pagamento = c.lancamentoId ? dados.lancamentos.find((l) => l.id === c.lancamentoId) : undefined;
+  const anexos = pagamento ? comprovantesDe(dados.comprovantes ?? [], pagamento).length : 0;
   const receita = c.fixa.tipo === "receita";
   const dia = diaDe(c.vencimento);
   const salario = c.fixa.bruto > 0 && receita;
@@ -101,7 +118,17 @@ export function LinhaConta({ c }: { c: FixaDoMes }) {
           {formatar(c.valor)}
         </span>
         <span className="linha-acao">
-          {c.estado === "paga" ? (
+          {c.estado === "paga" && pagamento ? (
+            <button
+              type="button"
+              className="pilula bom pilula-botao"
+              aria-label={`${receita ? "Recebida" : "Paga"}${anexos ? `, ${anexos === 1 ? "com comprovante" : `com ${anexos} comprovantes`}` : ""}. Ver o pagamento`}
+              onClick={() => abrirLancamento({ modo: "editar", lancamento: pagamento })}
+            >
+              {anexos ? <Paperclip size={11} strokeWidth={2.25} aria-hidden="true" /> : null}
+              {receita ? "Recebida" : "Paga"}
+            </button>
+          ) : c.estado === "paga" ? (
             <span className="pilula bom">{receita ? "Recebida" : "Paga"}</span>
           ) : (
             <button

@@ -5,7 +5,11 @@ import useSWR from "swr";
 import { ErroDeAcao, aplicar, planejar, type Acao, type Patch } from "@/lib/acoes";
 import { hoje as hojeAgora, mesDe } from "@/lib/datas";
 import type { FixaDoMes } from "@/lib/dominio";
-import type { Dados, Dono, Fixa, Lancamento, Natureza, PessoaId, TipoCategoria, TipoLancamento } from "@/lib/tipos";
+import { TAMANHO_MAXIMO, tamanhoLegivel } from "@/lib/comprovantes";
+import type {
+  Comprovante, Dados, Dono, Fixa, Lancamento, Natureza, PessoaId, TipoCategoria, TipoLancamento,
+} from "@/lib/tipos";
+import { prepararArquivo } from "./preparar-arquivo";
 
 export type PedidoDeLancamento =
   | { modo: "novo"; tipo?: TipoLancamento; valor?: number; pagoPor?: PessoaId }
@@ -24,7 +28,11 @@ interface App {
   setQuem: (p: PessoaId) => void;
   nomes: Record<PessoaId, string>;
   temLogin: boolean;
-  executar: (acao: Acao, feito?: string) => Promise<boolean>;
+  /** `aoGravar` recebe os ids criados, depois que o banco confirmou. */
+  executar: (acao: Acao, feito?: string, aoGravar?: (ids: string[]) => void) => Promise<boolean>;
+  enviarComprovantes: (dono: string, arquivos: File[]) => Promise<void>;
+  apagarComprovante: (c: Comprovante) => Promise<boolean>;
+  urlDoComprovante: (c: Comprovante, baixar?: boolean) => string;
   avisar: (mensagem: string) => void;
   pedidoLancamento: PedidoDeLancamento | null;
   abrirLancamento: (p: PedidoDeLancamento | null) => void;
@@ -52,8 +60,12 @@ async function buscar(url: string): Promise<Dados> {
     const j = (await r.json().catch(() => ({}))) as { erro?: string };
     throw new ErroDeRede(j.erro ?? "Não foi possível carregar os dados.");
   }
-  return (await r.json()) as Dados;
+  const d = (await r.json()) as Dados;
+  return { ...d, comprovantes: d.comprovantes ?? [] };
 }
+
+/** Em demonstração, os arquivos ficam só nesta aba. */
+const arquivosDaDemo = new Map<string, string>();
 
 function gerarId(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
@@ -115,7 +127,7 @@ export function Provedor({
   }, []);
 
   const executar = useCallback(
-    async (acao: Acao, feito?: string): Promise<boolean> => {
+    async (acao: Acao, feito?: string, aoGravar?: (ids: string[]) => void): Promise<boolean> => {
       const ids: string[] = [];
       let patch: Patch;
       try {
@@ -136,6 +148,7 @@ export function Provedor({
         // Demonstração: nada vai ao servidor; a mudança vive só nesta aba.
         await mutate((atual) => aplicar(atual ?? dadosRef.current, patch), { revalidate: false });
         if (feito) avisar(feito);
+        aoGravar?.(ids);
         return true;
       }
       try {
@@ -160,6 +173,7 @@ export function Provedor({
           },
         );
         if (feito) avisar(feito);
+        aoGravar?.(ids);
         return true;
       } catch (e) {
         avisar(e instanceof ErroDeRede ? e.message : "Sem conexão. Nada foi alterado.");
@@ -167,6 +181,89 @@ export function Provedor({
       }
     },
     [avisar, demo, mutate, quem],
+  );
+
+  const enviarComprovantes = useCallback(
+    async (dono: string, arquivos: File[]) => {
+      let enviados = 0;
+      for (const original of arquivos) {
+        const arquivo = await prepararArquivo(original);
+        if (arquivo.size > TAMANHO_MAXIMO) {
+          avisar(`${original.name} tem ${tamanhoLegivel(arquivo.size)}; o limite é 3 MB.`);
+          continue;
+        }
+        let comprovante: Comprovante;
+        if (demo) {
+          const id = crypto.randomUUID().replace(/-/g, "");
+          arquivosDaDemo.set(id, URL.createObjectURL(arquivo));
+          comprovante = {
+            id, dono, nome: arquivo.name, tipo: arquivo.type, tamanho: arquivo.size,
+            criadoEm: new Date().toISOString(), criadoPor: quem,
+          };
+        } else {
+          const corpo = new FormData();
+          corpo.append("dono", dono);
+          corpo.append("arquivo", arquivo, arquivo.name);
+          try {
+            const r = await fetch("/api/comprovantes", { method: "POST", body: corpo });
+            if (r.status === 401) window.location.href = "/entrar";
+            const j = (await r.json().catch(() => ({}))) as { comprovante?: Comprovante; erro?: string };
+            if (!r.ok || !j.comprovante) {
+              avisar(j.erro ?? "Não foi possível anexar o comprovante.");
+              continue;
+            }
+            comprovante = j.comprovante;
+          } catch {
+            avisar("Sem conexão. O comprovante não foi anexado.");
+            continue;
+          }
+        }
+        await mutate((atual) => {
+          const d = atual ?? dadosRef.current;
+          return { ...d, comprovantes: [...(d.comprovantes ?? []), comprovante] };
+        }, { revalidate: false });
+        enviados++;
+      }
+      if (enviados > 0) avisar(enviados === 1 ? "Comprovante anexado" : `${enviados} comprovantes anexados`);
+    },
+    [avisar, demo, mutate, quem],
+  );
+
+  const apagarComprovante = useCallback(
+    async (c: Comprovante) => {
+      const tirar = (d: Dados) => ({ ...d, comprovantes: (d.comprovantes ?? []).filter((x) => x.id !== c.id) });
+      if (demo) {
+        await mutate((atual) => tirar(atual ?? dadosRef.current), { revalidate: false });
+        avisar("Comprovante apagado");
+        return true;
+      }
+      try {
+        await mutate(
+          async (atual) => {
+            const r = await fetch(`/api/comprovantes/${c.id}`, { method: "DELETE" });
+            if (r.status === 401) window.location.href = "/entrar";
+            if (!r.ok) {
+              const j = (await r.json().catch(() => ({}))) as { erro?: string };
+              throw new ErroDeRede(j.erro ?? "Não foi possível apagar o comprovante.");
+            }
+            return tirar(atual ?? dadosRef.current);
+          },
+          { optimisticData: (atual) => tirar(atual ?? dadosRef.current), rollbackOnError: true, revalidate: false },
+        );
+        avisar("Comprovante apagado");
+        return true;
+      } catch (e) {
+        avisar(e instanceof ErroDeRede ? e.message : "Sem conexão. Nada foi apagado.");
+        return false;
+      }
+    },
+    [avisar, demo, mutate],
+  );
+
+  const urlDoComprovante = useCallback(
+    (c: Comprovante, baixar = false) =>
+      demo ? (arquivosDaDemo.get(c.id) ?? "") : `/api/comprovantes/${c.id}${baixar ? "?baixar=1" : ""}`,
+    [demo],
   );
 
   const app = useMemo<App>(
@@ -180,13 +277,19 @@ export function Provedor({
       nomes: { a: dados.config.nomeA || "Pessoa 1", b: dados.config.nomeB || "Pessoa 2" },
       temLogin,
       executar,
+      enviarComprovantes,
+      apagarComprovante,
+      urlDoComprovante,
       avisar,
       pedidoLancamento,
       abrirLancamento,
       pedidoFixa,
       abrirFixa,
     }),
-    [dados, hoje, mes, quem, setQuem, temLogin, executar, avisar, pedidoLancamento, pedidoFixa],
+    [
+      dados, hoje, mes, quem, setQuem, temLogin, executar, enviarComprovantes, apagarComprovante, urlDoComprovante,
+      avisar, pedidoLancamento, pedidoFixa,
+    ],
   );
 
   return (

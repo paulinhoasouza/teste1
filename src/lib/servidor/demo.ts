@@ -161,5 +161,6 @@ export function dadosDeDemonstracao(hojeData: string): Dados {
     categorias: CATEGORIAS_INICIAIS.map((c) => ({ ...c, orcamento: ORCAMENTOS[c.id] ?? 0 })),
     fixas: FIXAS,
     lancamentos,
+    comprovantes: [],
   };
 }

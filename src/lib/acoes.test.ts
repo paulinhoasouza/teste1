@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ErroDeAcao, planejar, type Contexto } from "./acoes";
+import { ErroDeAcao, aplicar, planejar, type Contexto } from "./acoes";
 import { simular } from "./salario";
 import type { Dados, Lancamento } from "./tipos";
 
@@ -9,6 +9,7 @@ const ctx: Contexto = { quem: "a", agora: "2026-11-16T12:00:00.000Z", novoId: ()
 function base(p: Partial<Dados> = {}): Dados {
   return {
     demo: false,
+    comprovantes: [],
     config: { nomeA: "Paulo", nomeB: "Bia", corA: "azul", corB: "laranja", parteAPadrao: 50 },
     categorias: [
       { id: "mercado", nome: "Mercado", tipo: "despesa", orcamento: 0, ordem: 1, arquivada: false },
@@ -90,6 +91,17 @@ describe("planejar", () => {
     expect(planejar({ acao: "lancamento.remover", id: ls[1]!.id, grupo: false }, d, ctx).lancamentos?.remover).toEqual([ls[1]!.id]);
     expect(planejar({ acao: "lancamento.remover", id: ls[1]!.id, grupo: true }, d, ctx).lancamentos?.remover).toEqual(ls.map((l) => l.id));
     expect(() => planejar({ acao: "lancamento.remover", id: "x", grupo: false }, d, ctx)).toThrow(ErroDeAcao);
+  });
+
+  it("excluir leva os comprovantes junto; excluir uma parcela só, não", () => {
+    const ls = planejar({ ...novo, parcelas: 3 }, base(), ctx).lancamentos?.salvar as Lancamento[];
+    const grupo = ls[0]!.grupo;
+    const c = { id: "c1", dono: grupo, nome: "nota.jpg", tipo: "image/jpeg", tamanho: 10, criadoEm: "", criadoPor: "a" };
+    const d = base({ lancamentos: ls, comprovantes: [c] });
+    const umaParcela = planejar({ acao: "lancamento.remover", id: ls[1]!.id, grupo: false }, d, ctx);
+    expect(aplicar(d, umaParcela).comprovantes).toEqual([c]);
+    const todas = planejar({ acao: "lancamento.remover", id: ls[1]!.id, grupo: true }, d, ctx);
+    expect(aplicar(d, todas).comprovantes).toEqual([]);
   });
 
   it("cria categoria com id legível e único", () => {

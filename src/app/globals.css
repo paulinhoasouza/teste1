@@ -1005,6 +1005,103 @@ details.ver-tabela[open] summary { margin-bottom: 10px; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.15);
 }
 
+/* ---------- Comprovantes ---------- */
+
+.anexos { display: flex; flex-wrap: wrap; gap: 10px; }
+.anexos > li { position: relative; }
+.anexo {
+  width: 76px; height: 76px; border-radius: 14px; border: 0; padding: 0; overflow: hidden; display: grid; place-items: center;
+  background: var(--raised); color: var(--muted); box-shadow: inset 0 0 0 1px var(--vidro-contorno);
+  transition: transform 180ms var(--mola-quique), box-shadow 180ms ease;
+  animation: brotar-anexo 420ms var(--mola-quique) backwards;
+}
+button.anexo:active { transform: scale(0.92); }
+@media (hover: hover) { button.anexo:hover { box-shadow: inset 0 0 0 1px var(--vidro-contorno), 0 6px 16px -8px rgba(0, 0, 0, 0.4); } }
+@keyframes brotar-anexo { from { opacity: 0; transform: scale(0.8); } }
+.anexo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.anexo-doc { display: grid; justify-items: center; gap: 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+.anexo-novo {
+  gap: 2px; align-content: center; font-size: 12px; font-weight: 500; color: var(--text);
+  background-color: transparent; border: 0;
+}
+.anexo-novo { box-shadow: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='76' height='76'%3E%3Crect x='1' y='1' width='74' height='74' rx='13' fill='none' stroke='%23998877' stroke-opacity='.55' stroke-width='1.5' stroke-dasharray='5 4'/%3E%3C/svg%3E"); background-size: 100% 100%; }
+.anexo-novo:hover { background-color: var(--fill); }
+.anexo-pendente .anexo { opacity: 0.85; }
+.anexo-tirar {
+  position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; background: var(--text); color: var(--fundo);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); transition: transform 160ms var(--mola-quique);
+}
+.anexo-tirar:active { transform: scale(0.85); }
+.anexo.enviando { background: var(--fill); }
+.girando {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--fill-forte); border-top-color: var(--text);
+  animation: girar 800ms linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }
+
+.clipe { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--muted); font-size: 12px; font-weight: 600; }
+.pilula-botao { border: 0; gap: 4px; cursor: pointer; transition: transform 140ms var(--mola-quique), filter 140ms ease; }
+.pilula-botao:hover { filter: brightness(1.08); }
+.pilula-botao:active { transform: scale(0.94); }
+
+/* Visor: tela cheia escura, igual nos dois temas, para a foto ser o que importa. */
+dialog.visor {
+  position: fixed; inset: 0; width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0;
+  border: 0; background: rgba(8, 6, 4, 0.94); color: #f5eee7;
+  -webkit-backdrop-filter: blur(24px) saturate(140%); backdrop-filter: blur(24px) saturate(140%);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  --text: #f5eee7; --muted: #b6a89a;
+}
+dialog.visor[open] { display: grid; animation: abrir-visor 380ms var(--mola) both; }
+dialog.visor::backdrop { background: transparent; }
+@keyframes abrir-visor { from { opacity: 0; } }
+.visor-topo, .visor-pe {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px 20px;
+}
+.visor-pe { padding: 10px 16px calc(12px + env(safe-area-inset-bottom)) 20px; }
+.visor-titulo { display: grid; min-width: 0; }
+.visor-titulo strong { font-weight: 500; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visor-titulo span { font-size: 13px; color: var(--muted); }
+.visor-palco { position: relative; min-height: 0; display: grid; place-items: center; padding: 0 12px; overflow: hidden; }
+.visor-palco img {
+  max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; display: block;
+  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.8);
+  animation: chegar-foto 460ms var(--mola) both; touch-action: pinch-zoom;
+}
+@keyframes chegar-foto { from { opacity: 0; transform: scale(0.96); } }
+.visor-palco object { width: min(900px, 100%); height: 100%; border-radius: 10px; background: #fff; }
+.visor-seta {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; color: #fff; background: rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  transition: background-color 160ms ease, transform 160ms var(--mola-quique);
+}
+.visor-seta:hover { background: rgba(255, 255, 255, 0.2); }
+.visor-seta:active { transform: translateY(-50%) scale(0.88); }
+.visor-seta.esquerda { left: 16px; }
+.visor-seta.direita { right: 16px; }
+.visor-contagem { font-size: 14px; color: var(--muted); }
+.visor-acoes { display: flex; align-items: center; gap: 6px; }
+.visor-pergunta { font-size: 14px; margin-right: 4px; }
+.visor-botao {
+  min-width: 44px; height: 44px; border-radius: 999px; border: 0; display: inline-grid; place-items: center;
+  background: rgba(255, 255, 255, 0.1); color: #fff; padding: 0;
+  transition: background-color 160ms ease, transform 160ms var(--mola-quique);
+}
+.visor-botao:hover { background: rgba(255, 255, 255, 0.18); }
+.visor-botao:active { transform: scale(0.9); }
+.visor-botao.texto { padding: 0 16px; font-size: 15px; font-weight: 500; }
+.visor-botao.perigo { background: #ff6b5b; color: #1b0d0a; }
+.visor-sem-previa { display: grid; justify-items: center; gap: 12px; text-align: center; color: var(--muted); }
+.visor-sem-previa .botao { background: rgba(255, 255, 255, 0.14); color: #fff; }
+@media (max-width: 640px) {
+  .visor-seta { display: none; }
+  .visor-palco { padding: 0 6px; }
+  .anexo { width: 72px; height: 72px; }
+}
+
 /* ---------- Telas médias ---------- */
 
 @media (max-width: 1320px) {

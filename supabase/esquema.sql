@@ -117,6 +117,28 @@ grant select, update on public.usuarios to anon;
 create policy app_com_segredo on public.usuarios for all to anon
   using ((select privado.pedido_autorizado())) with check ((select privado.pedido_autorizado()));
 
+-- Comprovantes (fotos e PDFs) anexados a um lançamento, ou à compra inteira quando parcelada.
+create table public.comprovantes (
+  id text primary key check (id ~ '^[a-f0-9]{16,32}$'),
+  -- id do lançamento, ou o grupo das parcelas
+  dono text not null check (length(dono) between 1 and 40),
+  nome text not null default '' check (length(nome) <= 120),
+  tipo text not null check (tipo in ('image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf')),
+  tamanho integer not null check (tamanho between 1 and 3200000),
+  -- o arquivo em base64
+  conteudo text not null,
+  criado_em timestamptz not null default now(),
+  criado_por text not null default '' check (criado_por in ('', 'a', 'b'))
+);
+create index comprovantes_dono on public.comprovantes (dono);
+
+alter table public.comprovantes enable row level security;
+grant select, insert, delete on public.comprovantes to anon;
+-- Comprovante não se edita: só se cria e se apaga.
+revoke update, truncate, references, trigger on public.comprovantes from anon, authenticated;
+create policy app_com_segredo on public.comprovantes for all to anon
+  using ((select privado.pedido_autorizado())) with check ((select privado.pedido_autorizado()));
+
 insert into public.config (id, nome_a, nome_b) values (1, 'Paulo', 'Giovana');
 
 insert into public.categorias (id, nome, tipo, ordem) values

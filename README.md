@@ -10,6 +10,7 @@ Controle financeiro pessoal para duas pessoas. Os dados ficam num banco Postgres
 - **Contas fixas**: aluguel, internet e salários cadastrados uma vez; a cada mês viram uma lista para marcar como paga ou recebida.
 - **Salário pelo bruto**: o app simula o líquido com INSS e IR de 2026 e mostra o valor como simulado até vocês confirmarem o líquido que caiu.
 - **Assinaturas**: streaming, jogos e apps, mensais ou anuais (como PS Plus), com o custo por mês e por ano e um botão para marcar todas as cobranças do mês.
+- Comprovantes: foto da nota, recibo ou PDF do boleto anexados a cada lançamento (a compra parcelada guarda um só para todas as parcelas), com visualizador em tela cheia. As fotos são reduzidas no aparelho antes de subir.
 - **Relatório**: do casal ou de cada um, por mês ou por 3, 6 e 12 meses. Mostra renda, saídas, sobra e quanto foi guardado; para onde vai o dinheiro (contas fixas, assinaturas, parcelas e dia a dia); mês a mês; categorias comparadas com o período anterior; a divisão entre vocês; compromissos futuros e os maiores gastos.
 - **Orçamento por categoria**: opcional; avisa quando uma categoria passa do planejado.
 

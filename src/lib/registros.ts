@@ -1,5 +1,5 @@
 import { deReais, paraReais } from "./dinheiro";
-import type { Categoria, Config, CorPessoa, Dono, Fixa, Lancamento, PessoaId } from "./tipos";
+import type { Categoria, Comprovante, Config, CorPessoa, Dono, Fixa, Lancamento, PessoaId } from "./tipos";
 
 /** Uma linha de tabela como a API do banco devolve. */
 export type Registro = Record<string, unknown>;
@@ -122,5 +122,18 @@ export function registroParaConfig(r: Registro): Config {
     corA,
     corB,
     parteAPadrao: inteiro(r.parte_a_padrao, 50, 0, 100),
+  };
+}
+
+/** Só os dados do comprovante, sem o arquivo: a lista vem junto com o resto, o arquivo só quando abre. */
+export function registroParaComprovante(r: Registro): Comprovante {
+  return {
+    id: txt(r.id),
+    dono: txt(r.dono),
+    nome: txt(r.nome),
+    tipo: txt(r.tipo),
+    tamanho: inteiro(r.tamanho, 0, 0, 100_000_000),
+    criadoEm: instante(r.criado_em),
+    criadoPor: txt(r.criado_por),
   };
 }

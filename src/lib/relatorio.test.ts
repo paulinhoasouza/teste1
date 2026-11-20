@@ -53,6 +53,7 @@ function cenario(): Dados {
     categorias: cats,
     fixas,
     lancamentos,
+    comprovantes: [],
   };
 }
 

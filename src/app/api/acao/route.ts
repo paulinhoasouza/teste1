@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { ErroDeAcao, planejar } from "@/lib/acoes";
 import { carregar, quemEstaUsando } from "@/lib/servidor/acesso";
 import { ErroDeConfiguracao } from "@/lib/servidor/ambiente";
-import { gravar } from "@/lib/servidor/banco";
+import { donosOrfaos } from "@/lib/comprovantes";
+import { apagarComprovantes, gravar } from "@/lib/servidor/banco";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,14 @@ export async function POST(req: Request) {
         return id;
       },
     });
-    if (cred) await gravar(cred, patch);
+    if (cred) {
+      await gravar(cred, patch);
+      // Lançamento excluído leva os comprovantes junto; uma parcela só, não (o comprovante é da compra).
+      const orfaos = donosOrfaos(dados.lancamentos, patch.lancamentos?.remover ?? []);
+      if (orfaos.length) {
+        await apagarComprovantes(cred, { donos: orfaos }).catch((e) => console.error("Comprovantes órfãos ficaram", e));
+      }
+    }
     return NextResponse.json({ patch });
   } catch (e) {
     if (e instanceof ErroDeAcao) return NextResponse.json({ erro: e.message }, { status: 422 });

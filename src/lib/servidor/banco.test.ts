@@ -14,6 +14,7 @@ class BancoFalso {
     categorias: [{ id: "mercado", nome: "Mercado", tipo: "despesa", orcamento: 0, ordem: 1, arquivada: false }],
     fixas: [],
     config: [{ id: 1, nome_a: "Paulo", nome_b: "Giovana", cor_a: "azul", cor_b: "laranja", parte_a_padrao: 50 }],
+    comprovantes: [],
   };
   segredo = "certo";
   pedidos: { metodo: string; caminho: string; cabecalhos: Record<string, string> }[] = [];
@@ -39,7 +40,8 @@ class BancoFalso {
     }
     if (!autorizado) return json({ code: "42501", message: "violates row-level security policy" }, 401);
     if (metodo === "POST") {
-      for (const nova of JSON.parse(String(init?.body)) as Linha[]) {
+      const corpo = JSON.parse(String(init?.body)) as Linha | Linha[];
+      for (const nova of Array.isArray(corpo) ? corpo : [corpo]) {
         const i = linhas.findIndex((l) => l.id === nova.id);
         const repetida = tabela === "lancamentos" && nova.fixa_id &&
           linhas.some((l) => l.id !== nova.id && l.fixa_id === nova.fixa_id && l.mes_ref === nova.mes_ref);
@@ -50,8 +52,9 @@ class BancoFalso {
       return new Response(null, { status: 201 });
     }
     if (metodo === "DELETE") {
-      const ids = (u.searchParams.get("id") ?? "").replace(/^in\.\(|\)$/g, "").split(",").map((x) => x.replace(/"/g, ""));
-      this.tabelas[tabela] = linhas.filter((l) => !ids.includes(String(l.id)));
+      const coluna = u.searchParams.has("dono") ? "dono" : "id";
+      const ids = (u.searchParams.get(coluna) ?? "").replace(/^in\.\(|\)$/g, "").split(",").map((x) => x.replace(/"/g, ""));
+      this.tabelas[tabela] = linhas.filter((l) => !ids.includes(String(l[coluna])));
       return new Response(null, { status: 204 });
     }
     return json({ message: "não previsto" }, 500);
@@ -81,11 +84,46 @@ describe("banco", () => {
     expect(dados.demo).toBe(false);
     expect(dados.config).toMatchObject({ nomeA: "Paulo", nomeB: "Giovana" });
     expect(dados.categorias.map((c) => c.id)).toEqual(["mercado"]);
-    expect(falso.pedidos).toHaveLength(4);
+    expect(falso.pedidos).toHaveLength(5);
+    expect(dados.comprovantes).toEqual([]);
     for (const p of falso.pedidos) {
       expect(p.cabecalhos.apikey).toBe("sb_publishable_x");
       expect(p.cabecalhos["x-app-chave"]).toBe("certo");
     }
+  });
+
+  it("guarda um comprovante, lista sem o conteúdo, devolve o arquivo e apaga pelo lançamento", async () => {
+    const { apagarComprovantes, guardarComprovante, lerArquivo, lerDados } = await import("./banco");
+    const bytes = Buffer.from("%PDF-1.7 comprovante");
+    await guardarComprovante(cred, {
+      id: "abcdef0123456789", dono: "l1", nome: "boleto.pdf", tipo: "application/pdf",
+      tamanho: bytes.byteLength, criadoPor: "b", conteudo: bytes.toString("base64"),
+    });
+    await guardarComprovante(cred, {
+      id: "abcdef0123456780", dono: "g1", nome: "nota.jpg", tipo: "image/jpeg",
+      tamanho: 3, criadoPor: "a", conteudo: "AAAA",
+    });
+    const pedidoDaLista = () => falso.pedidos.find((p) => p.caminho.startsWith("comprovantes?select="))!;
+    const dados = await lerDados(cred);
+    expect(pedidoDaLista().caminho).not.toContain("conteudo");
+    expect(dados.comprovantes.map((c) => [c.dono, c.nome, c.criadoPor])).toEqual([["g1", "nota.jpg", "a"], ["l1", "boleto.pdf", "b"]]);
+    expect(dados.comprovantes[0]).not.toHaveProperty("conteudo");
+
+    const arquivo = await lerArquivo(cred, "abcdef0123456789");
+    expect(arquivo?.tipo).toBe("application/pdf");
+    expect(arquivo?.bytes.toString()).toBe("%PDF-1.7 comprovante");
+    expect(await lerArquivo(cred, "0000000000000000")).toBeNull();
+
+    await apagarComprovantes(cred, { donos: ["l1"] });
+    expect(falso.tabelas.comprovantes!.map((c) => c.id)).toEqual(["abcdef0123456780"]);
+  });
+
+  it("sem a tabela de comprovantes, o resto continua abrindo", async () => {
+    const { lerDados } = await import("./banco");
+    delete falso.tabelas.comprovantes;
+    const dados = await lerDados(cred);
+    expect(dados.comprovantes).toEqual([]);
+    expect(dados.categorias).toHaveLength(1);
   });
 
   it("cria, altera e apaga lançamentos sem tocar nos outros", async () => {

@@ -1,7 +1,8 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { comprovantesDe, donoDoComprovante } from "@/lib/comprovantes";
 import type { Acao } from "@/lib/acoes";
 import { dataValida, mesDe, nomeDoMes } from "@/lib/datas";
 import { formatar } from "@/lib/dinheiro";
@@ -9,6 +10,7 @@ import { expandirParcelas, outra } from "@/lib/dominio";
 import { ehSimulada, simulacaoDa } from "@/lib/salario";
 import type { Dono, PessoaId, TipoLancamento } from "@/lib/tipos";
 import { CampoValor, EscolhaDono, EscolhaPessoa } from "./campos";
+import { AreaDeComprovantes, novoPendente, type Pendente } from "./comprovantes";
 import { Folha } from "./folha";
 import { useApp, type PedidoDeLancamento } from "./provedor";
 import { QuadroSimulacao } from "./simulacao";
@@ -30,7 +32,7 @@ export function FormLancamento() {
 }
 
 function Corpo({ pedido, fechar }: { pedido: PedidoDeLancamento; fechar: () => void }) {
-  const { dados, hoje, mes, quem, nomes, executar } = useApp();
+  const { dados, hoje, mes, quem, nomes, executar, enviarComprovantes } = useApp();
   const editando = pedido.modo === "editar" ? pedido.lancamento : null;
   const conta = pedido.modo === "pagar" ? pedido.conta : null;
   const base = editando ?? conta?.fixa;
@@ -58,6 +60,21 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeLancamento; fechar: () => v
   const [parcelas, setParcelas] = useState(1);
   const [erro, setErro] = useState("");
   const [excluindo, setExcluindo] = useState(false);
+  // Comprovantes: editando, sobem na hora; num lançamento novo, esperam ele ser gravado.
+  const [pendentes, setPendentes] = useState<Pendente[]>([]);
+  const [enviando, setEnviando] = useState(0);
+  const pendentesRef = useRef(pendentes);
+  pendentesRef.current = pendentes;
+  useEffect(() => () => pendentesRef.current.forEach((p) => URL.revokeObjectURL(p.url)), []);
+  const existentes = editando ? comprovantesDe(dados.comprovantes ?? [], editando) : [];
+  const escolherArquivos = (arquivos: File[]) => {
+    if (!editando) {
+      setPendentes((ps) => [...ps, ...arquivos.map(novoPendente)]);
+      return;
+    }
+    setEnviando((n) => n + arquivos.length);
+    void enviarComprovantes(donoDoComprovante(editando), arquivos).finally(() => setEnviando((n) => n - arquivos.length));
+  };
 
   const categorias = dados.categorias.filter(
     (c) => c.tipo === tipo && (!c.arquivada || c.id === categoria),
@@ -116,7 +133,11 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeLancamento; fechar: () => v
           parcelas,
           ...(conta ? { fixaId: conta.fixa.id, mesRef: mes } : {}),
         };
-    void executar(acao, feito);
+    const arquivos = pendentes.map((p) => p.arquivo);
+    // O primeiro id criado é o do lançamento, ou o do grupo quando é parcelado: é o dono dos comprovantes.
+    void executar(acao, feito, arquivos.length && !editando ? (ids) => {
+      if (ids[0]) void enviarComprovantes(ids[0], arquivos);
+    } : undefined);
     fechar();
   };
 
@@ -246,6 +267,19 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeLancamento; fechar: () => v
         {editando?.parcela ? (
           <p className="campo-dica">Parcela {editando.parcela.replace("/", " de ")}. A alteração vale só para esta parcela.</p>
         ) : null}
+        <AreaDeComprovantes
+          existentes={existentes}
+          pendentes={pendentes}
+          enviando={enviando}
+          aoEscolher={escolherArquivos}
+          aoTirarPendente={(chave) =>
+            setPendentes((ps) => {
+              const sai = ps.find((p) => p.chave === chave);
+              if (sai) URL.revokeObjectURL(sai.url);
+              return ps.filter((p) => p.chave !== chave);
+            })
+          }
+        />
         {erro ? <p className="erro-campo" role="alert">{erro}</p> : null}
       </div>
 

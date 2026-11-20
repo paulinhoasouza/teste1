@@ -2,14 +2,15 @@ import "server-only";
 import { ErroDeAcao, type Patch } from "../acoes";
 import {
   categoriaParaRegistro, configParaRegistro, fixaParaRegistro, lancamentoParaRegistro,
-  registroParaCategoria, registroParaConfig, registroParaFixa, registroParaLancamento, type Registro,
+  registroParaCategoria, registroParaComprovante, registroParaConfig, registroParaFixa, registroParaLancamento,
+  type Registro,
 } from "../registros";
-import type { Dados, PessoaId } from "../tipos";
+import type { Comprovante, Dados, PessoaId } from "../tipos";
 import { ErroDeConfiguracao, type Credenciais } from "./ambiente";
 
 /** Acesso ao Postgres do Supabase pela API de dados (PostgREST). */
 
-type Tabela = "lancamentos" | "categorias" | "fixas" | "config";
+type Tabela = "lancamentos" | "categorias" | "fixas" | "config" | "comprovantes";
 const MAXIMO_DE_FALHAS = 5;
 const MINUTOS_DE_BLOQUEIO = 15;
 const PAGINA = 1000;
@@ -39,10 +40,10 @@ async function pedir(c: Credenciais, caminho: string, init: RequestInit = {}): P
 }
 
 /** Lê uma tabela inteira, de mil em mil linhas. */
-async function lerTudo(c: Credenciais, tabela: Tabela): Promise<Registro[]> {
+async function lerTudo(c: Credenciais, tabela: Tabela, colunas = "*"): Promise<Registro[]> {
   const linhas: Registro[] = [];
   for (let inicio = 0; ; inicio += PAGINA) {
-    const r = await pedir(c, `${tabela}?select=*&order=id&limit=${PAGINA}&offset=${inicio}`);
+    const r = await pedir(c, `${tabela}?select=${colunas}&order=id&limit=${PAGINA}&offset=${inicio}`);
     const pagina = (await r.json()) as Registro[];
     linhas.push(...pagina);
     if (pagina.length < PAGINA) return linhas;
@@ -50,11 +51,12 @@ async function lerTudo(c: Credenciais, tabela: Tabela): Promise<Registro[]> {
 }
 
 export async function lerDados(c: Credenciais): Promise<Dados> {
-  const [lancamentos, categorias, fixas, config] = await Promise.all([
+  const [lancamentos, categorias, fixas, config, comprovantes] = await Promise.all([
     lerTudo(c, "lancamentos"),
     lerTudo(c, "categorias"),
     lerTudo(c, "fixas"),
     lerTudo(c, "config"),
+    lerComprovantes(c),
   ]);
   // A linha de configuração sempre existe; se sumiu, o banco está escondendo tudo.
   if (!config[0]) {
@@ -66,7 +68,51 @@ export async function lerDados(c: Credenciais): Promise<Dados> {
     categorias: categorias.map(registroParaCategoria).sort((a, b) => a.ordem - b.ordem),
     fixas: fixas.map(registroParaFixa),
     config: registroParaConfig(config[0]),
+    comprovantes,
   };
+}
+
+/** A lista de comprovantes, sem o conteúdo. Se a tabela ainda não existe, o resto do app segue funcionando. */
+async function lerComprovantes(c: Credenciais): Promise<Comprovante[]> {
+  try {
+    const linhas = await lerTudo(c, "comprovantes", "id,dono,nome,tipo,tamanho,criado_em,criado_por");
+    return linhas.map(registroParaComprovante);
+  } catch (e) {
+    if (e instanceof ErroDeConfiguracao) return [];
+    throw e;
+  }
+}
+
+export async function guardarComprovante(
+  c: Credenciais,
+  dados: Omit<Comprovante, "criadoEm"> & { conteudo: string },
+): Promise<void> {
+  await pedir(c, "comprovantes", {
+    method: "POST",
+    headers: { prefer: "return=minimal" },
+    body: JSON.stringify({
+      id: dados.id, dono: dados.dono, nome: dados.nome, tipo: dados.tipo,
+      tamanho: dados.tamanho, conteudo: dados.conteudo, criado_por: dados.criadoPor,
+    }),
+  });
+}
+
+/** O arquivo de um comprovante; null se não existe. */
+export async function lerArquivo(c: Credenciais, id: string): Promise<{ tipo: string; nome: string; bytes: Buffer } | null> {
+  const r = await pedir(c, `comprovantes?select=tipo,nome,conteudo&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const [linha] = (await r.json()) as Registro[];
+  if (!linha) return null;
+  return { tipo: String(linha.tipo), nome: String(linha.nome ?? ""), bytes: Buffer.from(String(linha.conteudo), "base64") };
+}
+
+export async function apagarComprovantes(c: Credenciais, filtro: { ids?: string[]; donos?: string[] }): Promise<void> {
+  const lista = (xs: string[]) => encodeURIComponent(xs.map((x) => `"${x.replace(/["\\]/g, "")}"`).join(","));
+  if (filtro.ids?.length) {
+    await pedir(c, `comprovantes?id=in.(${lista(filtro.ids)})`, { method: "DELETE", headers: { prefer: "return=minimal" } });
+  }
+  if (filtro.donos?.length) {
+    await pedir(c, `comprovantes?dono=in.(${lista(filtro.donos)})`, { method: "DELETE", headers: { prefer: "return=minimal" } });
+  }
 }
 
 async function salvar(c: Credenciais, tabela: Tabela, registros: Registro[]): Promise<void> {

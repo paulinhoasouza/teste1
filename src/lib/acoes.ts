@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { donosOrfaos } from "./comprovantes";
 import { dataNoMes, dataValida, mesValido } from "./datas";
 import { expandirParcelas, fixaNoMes, outra } from "./dominio";
 import { previstoDa, simular } from "./salario";
@@ -312,8 +313,10 @@ function alterar<T extends { id: string }>(lista: T[], alt?: Alteracao<T>): T[] 
 
 /** Aplica um patch aos dados em memória (tela do cliente e modo demonstração). */
 export function aplicar(dados: Dados, patch: Patch): Dados {
+  const orfaos = new Set(donosOrfaos(dados.lancamentos, patch.lancamentos?.remover ?? []));
   return {
     ...dados,
+    comprovantes: orfaos.size ? (dados.comprovantes ?? []).filter((c) => !orfaos.has(c.dono)) : dados.comprovantes,
     config: patch.config ?? dados.config,
     lancamentos: alterar(dados.lancamentos, patch.lancamentos),
     fixas: alterar(dados.fixas, patch.fixas),

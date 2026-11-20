@@ -78,10 +78,23 @@ export interface Config {
   parteAPadrao: number;
 }
 
+/** Foto ou PDF anexado a um lançamento. O arquivo em si é buscado só quando alguém abre. */
+export interface Comprovante {
+  id: string;
+  /** Id do lançamento, ou o grupo quando é uma compra parcelada: vale para todas as parcelas. */
+  dono: string;
+  nome: string;
+  tipo: string;
+  tamanho: number;
+  criadoEm: string;
+  criadoPor: string;
+}
+
 export interface Dados {
   demo: boolean;
   config: Config;
   categorias: Categoria[];
   fixas: Fixa[];
   lancamentos: Lancamento[];
+  comprovantes: Comprovante[];
 }
