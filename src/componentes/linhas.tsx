@@ -3,7 +3,7 @@
 import { formatar } from "@/lib/dinheiro";
 import { diaDe, nomeDoMes } from "@/lib/datas";
 import { outra, type FixaDoMes, type Parcelamento } from "@/lib/dominio";
-import type { Lancamento } from "@/lib/tipos";
+import type { Fixa, Lancamento } from "@/lib/tipos";
 import { useApp } from "./provedor";
 import { Avatar, MarcaDono } from "./ui";
 
@@ -59,7 +59,8 @@ export function LinhaConta({ c }: { c: FixaDoMes }) {
   const { abrirLancamento, abrirFixa } = useApp();
   const receita = c.fixa.tipo === "receita";
   const dia = diaDe(c.vencimento);
-  const quando =
+  const salario = c.fixa.bruto > 0 && receita;
+  let quando =
     c.estado === "paga"
       ? receita ? "Recebida" : "Paga"
       : c.estado === "atrasada"
@@ -67,6 +68,15 @@ export function LinhaConta({ c }: { c: FixaDoMes }) {
         : c.estado === "hoje"
           ? receita ? "Entra hoje" : "Vence hoje"
           : receita ? `Entra dia ${dia}` : `Vence dia ${dia}`;
+  if (salario && c.estado === "paga") {
+    quando = c.diferenca === 0
+      ? "Recebido, igual ao simulado"
+      : `Recebido, ${formatar(Math.abs(c.diferenca))} ${c.diferenca > 0 ? "acima" : "abaixo"} do simulado`;
+  } else if (c.simulado) {
+    quando = `${quando}, bruto de ${formatar(c.fixa.bruto)}`;
+  }
+  if (c.fixa.fim && c.estado !== "paga") quando = `${quando}, até ${nomeDoMes(c.fixa.fim)}`;
+
   return (
     <li className="linha sem-midia">
       <div className="linha-texto">
@@ -74,13 +84,16 @@ export function LinhaConta({ c }: { c: FixaDoMes }) {
           <button
             type="button"
             style={{ background: "none", border: 0, padding: 0, textAlign: "left", minWidth: 0 }}
-            aria-label={`${c.fixa.descricao}. Editar conta fixa`}
+            aria-label={`${c.fixa.descricao}. Editar ${receita ? "receita" : "conta"} fixa`}
             onClick={() => abrirFixa({ fixa: c.fixa })}
           >
             <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.fixa.descricao}</span>
           </button>
+          {c.simulado ? <span className="pilula aviso">Simulado</span> : null}
         </div>
-        <div className={`linha-l2 ${c.estado === "atrasada" && !receita ? "ruim" : c.estado === "hoje" ? "atencao" : ""}`}>{quando}</div>
+        <div className={`linha-l2 quebra ${c.estado === "atrasada" && !receita ? "ruim" : c.estado === "hoje" || (c.estado === "atrasada" && c.simulado) ? "atencao" : ""}`}>
+          {quando}
+        </div>
       </div>
       <div className="linha-fim">
         <span className={`num ${c.estado === "paga" ? "mudo" : ""}`}>
@@ -91,10 +104,41 @@ export function LinhaConta({ c }: { c: FixaDoMes }) {
           {c.estado === "paga" ? (
             <span className="pilula bom">{receita ? "Recebida" : "Paga"}</span>
           ) : (
-            <button type="button" className="botao menor" onClick={() => abrirLancamento({ modo: "pagar", conta: c })}>
-              {receita ? "Receber" : "Pagar"}
+            <button
+              type="button"
+              className="botao menor"
+              aria-label={c.simulado ? `Confirmar o valor líquido de ${c.fixa.descricao}` : undefined}
+              onClick={() => abrirLancamento({ modo: "pagar", conta: c })}
+            >
+              {c.simulado ? "Confirmar" : receita ? "Receber" : "Pagar"}
             </button>
           )}
+        </span>
+      </div>
+    </li>
+  );
+}
+
+/** Conta fixa que não vale para o mês: pausada, encerrada ou ainda por começar. */
+export function LinhaFixaFora({ f, mes }: { f: Fixa; mes: string }) {
+  const { abrirFixa } = useApp();
+  const motivo = !f.ativa
+    ? "Pausada"
+    : f.fim && f.fim < mes
+      ? `Terminou em ${nomeDoMes(f.fim)}`
+      : `Começa em ${nomeDoMes(f.inicio)}`;
+  return (
+    <li className="linha sem-midia">
+      <div className="linha-texto">
+        <div className="linha-l1"><span>{f.descricao}</span></div>
+        <div className="linha-l2">{motivo}</div>
+      </div>
+      <div className="linha-fim">
+        <span className="num mudo">{f.tipo === "receita" ? "+" : ""}{formatar(f.valor)}</span>
+        <span className="linha-acao">
+          <button type="button" className="botao menor" aria-label={`Editar ${f.descricao}`} onClick={() => abrirFixa({ fixa: f })}>
+            Editar
+          </button>
         </span>
       </div>
     </li>

@@ -559,3 +559,12 @@ code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.9em;
 .lado-fixo { position: sticky; top: 24px; }
 .resumo-linhas { display: grid; gap: 12px; }
 .barra-cat { display: grid; gap: 6px; }
+
+/* ---------- Salário simulado e período das contas fixas ---------- */
+
+.caixa { background: var(--raised); border-radius: var(--radius-control); padding: 2px 16px; }
+.caixa .conta > div { padding: 8px 0; }
+.mes-ano { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; }
+.mes-ano .selecao:disabled { color: var(--muted); background-color: var(--raised); }
+.diferenca { font-size: var(--fs-small); color: var(--muted); }
+.linha-l2.quebra { white-space: normal; }

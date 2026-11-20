@@ -12,6 +12,7 @@ export function CampoValor({
   rotulo,
   grande,
   autoFoco,
+  selecionarAoFocar,
   id,
 }: {
   valor: number;
@@ -19,13 +20,18 @@ export function CampoValor({
   rotulo: string;
   grande?: boolean;
   autoFoco?: boolean;
+  /** Seleciona o valor inteiro ao focar, para a pessoa digitar o novo por cima. */
+  selecionarAoFocar?: boolean;
   id?: string;
 }) {
   const proprio = useId();
   const ref = useRef<HTMLInputElement>(null);
-  // Dentro de um diálogo o atributo autofocus chega antes de ele abrir; foca depois.
+  const tudoSelecionado = useRef(false);
+  // Dentro de um diálogo, abrir a janela move o foco para o primeiro botão; foca depois disso.
   useEffect(() => {
-    if (autoFoco) ref.current?.focus();
+    if (!autoFoco) return;
+    const quadro = requestAnimationFrame(() => ref.current?.focus());
+    return () => cancelAnimationFrame(quadro);
   }, [autoFoco]);
   const p = partesBRL(valor);
   const texto = `${p.inteiro},${p.centavos}`;
@@ -38,23 +44,33 @@ export function CampoValor({
       ref={ref}
       aria-label={grande ? `${rotulo}, em reais` : undefined}
       value={grande ? texto : `R$ ${texto}`}
+      onSelect={(e) => {
+        const el = e.currentTarget;
+        tudoSelecionado.current = el.value.length > 0 && el.selectionStart === 0 && el.selectionEnd === el.value.length;
+      }}
       onChange={(e) => {
-        // Vale o que foi digitado, não onde o cursor estava: cada dígito entra pela direita.
         const ev = e.nativeEvent as InputEvent;
         const digitado = ev.data?.replace(/\D/g, "") ?? "";
-        if (ev.inputType === "insertText" && digitado) {
+        if (tudoSelecionado.current) {
+          // Texto inteiro selecionado e digitado por cima: vale só o que foi digitado.
+          aoMudar(centavosDeDigitos(e.target.value));
+        } else if (ev.inputType === "insertText" && digitado) {
+          // Vale o que foi digitado, não onde o cursor estava: cada dígito entra pela direita.
           aoMudar(centavosDeDigitos(`${valor}${digitado}`));
         } else if (ev.inputType === "deleteContentBackward" || ev.inputType === "deleteContentForward") {
           aoMudar(Math.floor(valor / 10));
         } else {
           aoMudar(centavosDeDigitos(e.target.value));
         }
+        tudoSelecionado.current = false;
       }}
       onFocus={(e) => {
         const el = e.currentTarget;
-        const fim = () => el.setSelectionRange(el.value.length, el.value.length);
-        fim();
-        requestAnimationFrame(fim);
+        // Para trocar um valor sugerido, tudo já vem selecionado; senão o cursor vai para o fim.
+        const posicionar = () =>
+          selecionarAoFocar ? el.setSelectionRange(0, el.value.length) : el.setSelectionRange(el.value.length, el.value.length);
+        posicionar();
+        requestAnimationFrame(posicionar);
       }}
     />
   );
@@ -151,6 +167,66 @@ export function EscolhaDono({
           ) : null}
         </>
       ) : null}
+    </div>
+  );
+}
+
+const NOMES_DOS_MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+/** Mês e ano em dois seletores; o valor é "yyyy-mm", ou vazio quando não há data. */
+export function CampoMes({
+  valor,
+  aoMudar,
+  rotulo,
+  semData,
+  referencia,
+}: {
+  valor: string;
+  aoMudar: (mes: string) => void;
+  rotulo: string;
+  /** Texto da opção sem data, como "Sem término". */
+  semData: string;
+  /** Mês de hoje (yyyy-mm): escolher só o mês leva à próxima vez que ele acontece. */
+  referencia: string;
+}) {
+  const id = useId();
+  const anoAtual = Number(referencia.slice(0, 4));
+  const mesAtual = Number(referencia.slice(5, 7));
+  const ano = valor ? Number(valor.slice(0, 4)) : anoAtual;
+  const mes = valor ? Number(valor.slice(5, 7)) : 0;
+  const anos = Array.from({ length: 13 }, (_, i) => anoAtual - 2 + i);
+  if (!anos.includes(ano)) anos.unshift(ano);
+  const montar = (m: number, a: number) => (m ? `${a}-${String(m).padStart(2, "0")}` : "");
+  const escolherMes = (m: number) => {
+    if (!m) return aoMudar("");
+    // Sem data antes, o ano vem da próxima ocorrência do mês; com data, mantém o ano escolhido.
+    aoMudar(montar(m, valor ? ano : m >= mesAtual ? anoAtual : anoAtual + 1));
+  };
+  return (
+    <div className="campo">
+      <label htmlFor={`${id}-mes`}>{rotulo}</label>
+      <div className="mes-ano">
+        <select id={`${id}-mes`} className="selecao" value={mes} onChange={(e) => escolherMes(Number(e.target.value))}>
+          <option value={0}>{semData}</option>
+          {NOMES_DOS_MESES.map((nome, i) => (
+            <option key={nome} value={i + 1}>{nome}</option>
+          ))}
+        </select>
+        <select
+          className="selecao"
+          aria-label={`${rotulo}, ano`}
+          value={ano}
+          disabled={!mes}
+          onChange={(e) => aoMudar(montar(mes, Number(e.target.value)))}
+        >
+          {anos.map((a) => (
+            <option key={a} value={a}>{a}</option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

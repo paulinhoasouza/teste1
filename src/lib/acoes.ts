@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { dataValida, mesValido } from "./datas";
 import { expandirParcelas, outra } from "./dominio";
+import { simular } from "./salario";
 import type { Categoria, Config, Dados, Fixa, Lancamento, PessoaId } from "./tipos";
 
 /** Erro que pode ser mostrado à pessoa como está. */
@@ -36,6 +37,10 @@ const camposFixa = {
   ativa: z.boolean(),
   inicio: z.string().optional(),
   fim: z.string().optional(),
+  bruto: centavos.optional(),
+  regime: z.enum(["clt", "outro"]).optional(),
+  dependentes: z.number().int().min(0).max(20).optional(),
+  outrosDescontos: centavos.optional(),
 };
 
 export const esquemaAcao = z.discriminatedUnion("acao", [
@@ -180,14 +185,24 @@ export function planejar(entrada: unknown, dados: Dados, ctx: Contexto): Patch {
     }
 
     case "fixa.salvar": {
-      const { acao: _a, id, inicio = "", fim = "", ...campos } = acao;
+      const {
+        acao: _a, id, inicio = "", fim = "",
+        bruto: brutoInformado = 0, regime = "clt", dependentes = 0, outrosDescontos = 0,
+        ...campos
+      } = acao;
       if (inicio && !mesValido(inicio)) throw new ErroDeAcao("Mês de início inválido.");
-      if (fim && !mesValido(fim)) throw new ErroDeAcao("Mês de fim inválido.");
-      if (campos.valor <= 0) throw new ErroDeAcao("Informe um valor maior que zero.");
+      if (fim && !mesValido(fim)) throw new ErroDeAcao("Mês de término inválido.");
+      if (inicio && fim && fim < inicio) throw new ErroDeAcao("O término não pode vir antes do começo.");
+      // Só receita tem salário bruto; numa despesa os campos de simulação são ignorados.
+      const bruto = campos.tipo === "receita" ? brutoInformado : 0;
+      const simulacao = { bruto, regime, dependentes: bruto ? dependentes : 0, outrosDescontos: bruto ? outrosDescontos : 0 };
+      const valor = bruto ? simular(simulacao).liquido : campos.valor;
+      if (bruto && valor <= 0) throw new ErroDeAcao("Os descontos não podem ser maiores que o salário bruto.");
+      if (valor <= 0) throw new ErroDeAcao("Informe um valor maior que zero.");
       const cat = dados.categorias.find((c) => c.id === campos.categoria);
       if (!cat || cat.tipo !== campos.tipo) throw new ErroDeAcao("Escolha uma categoria.");
       if (id && !dados.fixas.some((f) => f.id === id)) throw new ErroDeAcao("Essa conta fixa não existe mais.");
-      return { fixas: { salvar: [{ ...campos, id: id || ctx.novoId(), inicio, fim }] } };
+      return { fixas: { salvar: [{ ...campos, ...simulacao, valor, id: id || ctx.novoId(), inicio, fim }] } };
     }
 
     case "fixa.remover": {

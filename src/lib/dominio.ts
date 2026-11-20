@@ -1,4 +1,5 @@
 import { dataNoMes, diaDe, diasNoMes, mesDe, somarMeses } from "./datas";
+import { ehSimulada, previstoDa } from "./salario";
 import type { Categoria, Dados, Dono, Fixa, Lancamento, PessoaId } from "./tipos";
 
 type Divisivel = Pick<Lancamento, "valor" | "deQuem" | "parteA">;
@@ -75,6 +76,17 @@ export interface FixaDoMes {
   lancamentoId: string;
   /** Valor lançado quando paga; valor previsto caso contrário. */
   valor: number;
+  /** O que se esperava: o líquido simulado, ou o valor cadastrado. */
+  previsto: number;
+  /** Receita ainda não confirmada cujo valor vem da simulação do bruto. */
+  simulado: boolean;
+  /** Recebido menos simulado, numa receita simulada já confirmada; 0 nos outros casos. */
+  diferenca: number;
+}
+
+/** A conta fixa vale para o mês? Ativa e dentro do período, se houver. */
+export function fixaNoMes(f: Fixa, mes: string): boolean {
+  return f.ativa && (!f.inicio || f.inicio <= mes) && (!f.fim || mes <= f.fim);
 }
 
 export function fixasDoMes(
@@ -88,7 +100,7 @@ export function fixasDoMes(
     if (l.fixaId && l.mesRef === mes) pagas.set(l.fixaId, l);
   }
   return fixas
-    .filter((f) => f.ativa && (!f.inicio || f.inicio <= mes) && (!f.fim || mes <= f.fim))
+    .filter((f) => fixaNoMes(f, mes))
     .map((fixa) => {
       const vencimento = dataNoMes(mes, fixa.dia);
       const pago = pagas.get(fixa.id);
@@ -99,7 +111,18 @@ export function fixasDoMes(
           : vencimento === hojeData
             ? "hoje"
             : "pendente";
-      return { fixa, vencimento, estado, lancamentoId: pago?.id ?? "", valor: pago?.valor ?? fixa.valor };
+      const previsto = previstoDa(fixa);
+      const simulada = ehSimulada(fixa);
+      return {
+        fixa,
+        vencimento,
+        estado,
+        lancamentoId: pago?.id ?? "",
+        valor: pago?.valor ?? previsto,
+        previsto,
+        simulado: simulada && !pago,
+        diferenca: simulada && pago ? pago.valor - previsto : 0,
+      };
     })
     .sort((x, y) => x.vencimento.localeCompare(y.vencimento) || x.fixa.descricao.localeCompare(y.fixa.descricao));
 }
@@ -115,6 +138,8 @@ export interface Resumo {
   recebido: number;
   /** Receitas fixas que ainda não entraram. */
   aReceber: number;
+  /** Parte de aReceber que vem da simulação do bruto, ainda sem o valor real. */
+  aReceberSimulado: number;
   renda: number;
   gasto: number;
   /** Contas fixas do mês ainda não pagas. */
@@ -140,12 +165,15 @@ export function resumoMes(dados: Dados, mes: string, escopo: Dono, hojeData: str
   }
 
   let aReceber = 0;
+  let aReceberSimulado = 0;
   let aPagar = 0;
   for (const f of fixasDoMes(dados.fixas, dados.lancamentos, mes, hojeData)) {
     if (f.estado === "paga") continue;
-    const v = peso(f.fixa, escopo);
-    if (f.fixa.tipo === "receita") aReceber += v;
-    else aPagar += v;
+    const v = peso({ ...f.fixa, valor: f.previsto }, escopo);
+    if (f.fixa.tipo === "receita") {
+      aReceber += v;
+      if (f.simulado) aReceberSimulado += v;
+    } else aPagar += v;
   }
 
   const renda = recebido + aReceber;
@@ -165,7 +193,7 @@ export function resumoMes(dados: Dados, mes: string, escopo: Dono, hojeData: str
     .filter((c) => c.gasto > 0 || (c.orcamento > 0 && !c.categoria.arquivada))
     .sort((x, y) => y.gasto - x.gasto || x.categoria.ordem - y.categoria.ordem);
 
-  return { recebido, aReceber, renda, gasto, aPagar, sobra, diasRestantes, porDia, categorias };
+  return { recebido, aReceber, aReceberSimulado, renda, gasto, aPagar, sobra, diasRestantes, porDia, categorias };
 }
 
 export interface Faixas {

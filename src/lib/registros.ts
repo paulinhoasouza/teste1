@@ -73,6 +73,8 @@ export function fixaParaRegistro(f: Fixa): Registro {
     id: f.id, descricao: f.descricao, tipo: f.tipo, valor: paraReais(f.valor), dia: f.dia,
     categoria: f.categoria, pago_por: f.pagoPor, de_quem: f.deQuem, parte_a: f.parteA,
     ativa: f.ativa, inicio: f.inicio, fim: f.fim,
+    bruto: paraReais(f.bruto), regime: f.regime, dependentes: f.dependentes,
+    outros_descontos: paraReais(f.outrosDescontos),
   };
 }
 
@@ -90,6 +92,10 @@ export function registroParaFixa(r: Registro): Fixa {
     ativa: r.ativa !== false,
     inicio: txt(r.inicio).slice(0, 7),
     fim: txt(r.fim).slice(0, 7),
+    bruto: Math.max(0, deReais(r.bruto)),
+    regime: txt(r.regime) === "outro" ? "outro" : "clt",
+    dependentes: inteiro(r.dependentes, 0, 0, 20),
+    outrosDescontos: Math.max(0, deReais(r.outros_descontos)),
   };
 }
 

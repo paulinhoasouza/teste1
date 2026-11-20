@@ -22,7 +22,12 @@ create table public.fixas (
   parte_a integer not null default 50 check (parte_a between 0 and 100),
   ativa boolean not null default true,
   inicio text not null default '',
-  fim text not null default ''
+  fim text not null default '',
+  -- Receita informada pelo salário bruto: o app simula o líquido até ele ser confirmado.
+  bruto numeric(12, 2) not null default 0 check (bruto >= 0),
+  regime text not null default 'clt' check (regime in ('clt', 'outro')),
+  dependentes integer not null default 0 check (dependentes between 0 and 20),
+  outros_descontos numeric(12, 2) not null default 0 check (outros_descontos >= 0)
 );
 
 create table public.lancamentos (

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { simular } from "./salario";
 import type { Dados, Fixa, Lancamento } from "./tipos";
 import {
   expandirParcelas,
   extratoCasal,
+  fixaNoMes,
   parcelamentos,
   faixasDoMes,
   fixasDoMes,
@@ -46,6 +48,10 @@ function fixa(p: Partial<Fixa>): Fixa {
     ativa: true,
     inicio: "",
     fim: "",
+    bruto: 0,
+    regime: "clt",
+    dependentes: 0,
+    outrosDescontos: 0,
     ...p,
   };
 }
@@ -287,5 +293,36 @@ describe("parcelamentos", () => {
       grupo: "sofa", descricao: "Sofá novo", numero: 3, total: 10, valorDoMes: 30000,
       restante: 240000, ultimoMes: "2027-06",
     });
+  });
+});
+
+describe("receita simulada pelo bruto", () => {
+  const sim = { bruto: 900000, regime: "clt" as const, dependentes: 0, outrosDescontos: 0 };
+  const liquido = simular(sim).liquido;
+  const salario = fixa({ id: "sal", descricao: "Salário", tipo: "receita", dia: 5, categoria: "salario", deQuem: "a", valor: liquido, ...sim });
+
+  it("enquanto não chega, aparece como simulada com o líquido previsto", () => {
+    const [r] = fixasDoMes([salario], [], "2026-11", "2026-11-03");
+    expect(r).toMatchObject({ simulado: true, previsto: liquido, valor: liquido, diferenca: 0 });
+  });
+
+  it("depois de confirmada, guarda o valor real e a diferença para o simulado", () => {
+    const real = lanc({ tipo: "receita", fixaId: "sal", mesRef: "2026-11", valor: liquido + 1230, deQuem: "a" });
+    const [r] = fixasDoMes([salario], [real], "2026-11", "2026-11-10");
+    expect(r).toMatchObject({ estado: "paga", simulado: false, valor: liquido + 1230, diferenca: 1230 });
+  });
+
+  it("a sobra do mês separa o que ainda é simulado", () => {
+    const d = dados({ fixas: [salario, fixa({ id: "freela", tipo: "receita", valor: 50000, categoria: "salario", deQuem: "a", dia: 20 })] });
+    const r = resumoMes(d, "2026-11", "casal", "2026-11-03");
+    expect(r.aReceber).toBe(liquido + 50000);
+    expect(r.aReceberSimulado).toBe(liquido);
+  });
+
+  it("respeita o mês de término", () => {
+    const f = fixa({ fim: "2026-12" });
+    expect(fixaNoMes(f, "2026-12")).toBe(true);
+    expect(fixaNoMes(f, "2027-01")).toBe(false);
+    expect(fixaNoMes(fixa({ inicio: "2027-01" }), "2026-12")).toBe(false);
   });
 });

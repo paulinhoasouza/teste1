@@ -3,28 +3,36 @@
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
 import { Titulo } from "@/componentes/casca";
-import { LinhaConta } from "@/componentes/linhas";
+import { LinhaConta, LinhaFixaFora } from "@/componentes/linhas";
 import { useApp } from "@/componentes/provedor";
 import { Cartao, Trilho, Valor } from "@/componentes/ui";
 import { nomeDoMes, nomeDoMesCurto } from "@/lib/datas";
 import { formatar } from "@/lib/dinheiro";
-import { fixasDoMes } from "@/lib/dominio";
+import { fixaNoMes, fixasDoMes } from "@/lib/dominio";
 
 export default function Fixas() {
-  const { dados, mes, hoje, abrirFixa } = useApp();
+  const { dados, mes, hoje, nomes, abrirFixa } = useApp();
   const contas = useMemo(() => fixasDoMes(dados.fixas, dados.lancamentos, mes, hoje), [dados, mes, hoje]);
   const porPagar = (x: (typeof contas)[number]) => (x.estado === "paga" ? 1 : 0);
   const aPagar = contas.filter((c) => c.fixa.tipo === "despesa").sort((x, y) => porPagar(x) - porPagar(y));
   const aReceber = contas.filter((c) => c.fixa.tipo === "receita");
-  const pausadas = dados.fixas.filter((f) => !f.ativa);
+  const fora = dados.fixas.filter((f) => !fixaNoMes(f, mes));
+  // Quem ainda não tem salário cadastrado (receita fixa só dela) neste mês.
+  const semSalario = (["a", "b"] as const).filter((p) => !aReceber.some((c) => c.fixa.deQuem === p));
 
   const soma = (lista: typeof contas, pagas: boolean) =>
     lista.filter((c) => (c.estado === "paga") === pagas).reduce((s, c) => s + c.valor, 0);
   const pago = soma(aPagar, true);
   const falta = soma(aPagar, false);
   const recebido = soma(aReceber, true);
-  const entra = soma(aReceber, false);
+  const simulado = aReceber.filter((c) => c.simulado).reduce((s, c) => s + c.valor, 0);
+  const porEntrar = soma(aReceber, false) - simulado;
   const pendentes = aPagar.filter((c) => c.estado !== "paga").length;
+  const resumoDaRenda = [
+    recebido > 0 ? `${formatar(recebido)} confirmados` : "",
+    simulado > 0 ? `${formatar(simulado)} simulados` : "",
+    porEntrar > 0 ? `${formatar(porEntrar)} por entrar` : "",
+  ].filter(Boolean).join(", ") + ".";
 
   const frase =
     contas.length === 0
@@ -79,34 +87,44 @@ export default function Fixas() {
             </div>
           </Cartao>
 
-          <Cartao titulo="A receber" sub={aReceber.length > 0 ? `${formatar(recebido)} já entraram, ${formatar(entra)} por entrar` : undefined}>
-            {aReceber.length === 0 ? (
-              <p className="vazio">Cadastre os salários aqui para a sobra do mês contar com eles.</p>
-            ) : (
+          <Cartao
+            titulo="Renda do mês"
+            acao={
+              <button type="button" className="ligacao" style={{ background: "none", border: 0, padding: 0 }} onClick={() => abrirFixa({ fixa: null, tipo: "receita" })}>
+                Adicionar
+              </button>
+            }
+            sub={aReceber.length > 0 ? resumoDaRenda : undefined}
+          >
+            {aReceber.length > 0 ? (
               <ul className="linhas">
                 {aReceber.map((c) => (
                   <LinhaConta key={c.fixa.id} c={c} />
                 ))}
               </ul>
-            )}
+            ) : null}
+            {semSalario.length > 0 ? (
+              <div className="vazio" style={{ marginTop: aReceber.length > 0 ? 12 : 0 }}>
+                {semSalario.length === 2
+                  ? "Cadastre o salário bruto de cada um: o app simula o líquido e usa na sobra do mês até vocês confirmarem o valor real. "
+                  : `Falta o salário de ${nomes[semSalario[0]!]}. `}
+                {semSalario.map((p, i) => (
+                  <span key={p}>
+                    {i > 0 ? " ou " : null}
+                    <button type="button" onClick={() => abrirFixa({ fixa: null, tipo: "receita", deQuem: p })}>
+                      Salário de {nomes[p]}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </Cartao>
 
-          {pausadas.length > 0 ? (
-            <Cartao titulo="Pausadas">
+          {fora.length > 0 ? (
+            <Cartao titulo={`Fora de ${nomeDoMesCurto(mes)}`} sub="Pausadas, encerradas ou que ainda vão começar.">
               <ul className="linhas">
-                {pausadas.map((f) => (
-                  <li className="linha sem-midia" key={f.id}>
-                    <div className="linha-texto">
-                      <div className="linha-l1"><span>{f.descricao}</span></div>
-                      <div className="linha-l2">Dia {f.dia}</div>
-                    </div>
-                    <div className="linha-fim">
-                      <span className="num mudo">{formatar(f.valor)}</span>
-                      <span className="linha-acao">
-                        <button type="button" className="botao menor" onClick={() => abrirFixa({ fixa: f })}>Editar</button>
-                      </span>
-                    </div>
-                  </li>
+                {fora.map((f) => (
+                  <LinhaFixaFora key={f.id} f={f} mes={mes} />
                 ))}
               </ul>
             </Cartao>

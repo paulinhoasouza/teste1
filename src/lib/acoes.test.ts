@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ErroDeAcao, planejar, type Contexto } from "./acoes";
+import { simular } from "./salario";
 import type { Dados, Lancamento } from "./tipos";
 
 let n = 0;
@@ -15,7 +16,7 @@ function base(p: Partial<Dados> = {}): Dados {
     fixas: [
       {
         id: "aluguel", descricao: "Aluguel", tipo: "despesa", valor: 240000, dia: 10, categoria: "mercado",
-        pagoPor: "a", deQuem: "casal", parteA: 50, ativa: true, inicio: "", fim: "",
+        pagoPor: "a", deQuem: "casal", parteA: 50, ativa: true, inicio: "", fim: "", bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0,
       },
     ],
     lancamentos: [],
@@ -112,5 +113,44 @@ describe("planejar", () => {
     const p = planejar({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "rosa", parteAPadrao: 60 }, base(), ctx);
     expect(p.config).toEqual({ nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "rosa", parteAPadrao: 60 });
     expect(() => planejar({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "verde", parteAPadrao: 60 }, base(), ctx)).toThrow(/cor/);
+  });
+});
+
+describe("conta fixa: período e salário bruto", () => {
+  const receita = {
+    acao: "fixa.salvar" as const, descricao: "Salário", tipo: "receita" as const, valor: 0, dia: 5,
+    categoria: "salario", pagoPor: "a" as const, deQuem: "a" as const, parteA: 50, ativa: true,
+  };
+  const comSalario = () =>
+    base({
+      categorias: [
+        { id: "mercado", nome: "Mercado", tipo: "despesa", orcamento: 0, ordem: 1, arquivada: false },
+        { id: "salario", nome: "Salário", tipo: "receita", orcamento: 0, ordem: 2, arquivada: false },
+      ],
+    });
+
+  it("guarda começo e término, e recusa término antes do começo", () => {
+    const f = { ...receita, valor: 100000, inicio: "2026-11", fim: "2027-03" };
+    expect(planejar(f, comSalario(), ctx).fixas?.salvar?.[0]).toMatchObject({ inicio: "2026-11", fim: "2027-03" });
+    expect(() => planejar({ ...f, fim: "2026-10" }, comSalario(), ctx)).toThrow(/término/);
+    expect(() => planejar({ ...f, fim: "2027-13" }, comSalario(), ctx)).toThrow(ErroDeAcao);
+  });
+
+  it("com bruto, o valor previsto é o líquido simulado, não o digitado", () => {
+    const p = planejar({ ...receita, valor: 1, bruto: 900000, regime: "clt", outrosDescontos: 18000 }, comSalario(), ctx);
+    const f = p.fixas?.salvar?.[0];
+    expect(f).toMatchObject({ bruto: 900000, regime: "clt", outrosDescontos: 18000 });
+    expect(f?.valor).toBe(simular({ bruto: 900000, regime: "clt", dependentes: 0, outrosDescontos: 18000 }).liquido);
+  });
+
+  it("recusa descontos maiores que o bruto", () => {
+    expect(() =>
+      planejar({ ...receita, bruto: 100000, regime: "outro", outrosDescontos: 200000 }, comSalario(), ctx),
+    ).toThrow(/descontos/);
+  });
+
+  it("numa despesa, ignora os campos de salário", () => {
+    const desp = { ...receita, tipo: "despesa" as const, categoria: "mercado", valor: 5000, bruto: 900000, outrosDescontos: 100 };
+    expect(planejar(desp, comSalario(), ctx).fixas?.salvar?.[0]).toMatchObject({ bruto: 0, outrosDescontos: 0, valor: 5000 });
   });
 });

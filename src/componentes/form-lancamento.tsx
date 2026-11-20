@@ -6,9 +6,11 @@ import type { Acao } from "@/lib/acoes";
 import { dataValida, mesDe, nomeDoMes } from "@/lib/datas";
 import { formatar } from "@/lib/dinheiro";
 import { expandirParcelas, outra } from "@/lib/dominio";
+import { ehSimulada, simulacaoDa } from "@/lib/salario";
 import type { Dono, PessoaId, TipoLancamento } from "@/lib/tipos";
 import { CampoValor, EscolhaDono, EscolhaPessoa } from "./campos";
 import { useApp, type PedidoDeLancamento } from "./provedor";
+import { QuadroSimulacao } from "./simulacao";
 import { Segmentado } from "./ui";
 
 const TIPOS: { valor: TipoLancamento; rotulo: string }[] = [
@@ -53,8 +55,12 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeLancamento; fechar: () => v
     editando?.tipo ?? conta?.fixa.tipo ?? (pedido.modo === "novo" ? pedido.tipo : undefined) ?? "despesa",
   );
   const [valor, setValor] = useState(
-    editando?.valor ?? conta?.fixa.valor ?? (pedido.modo === "novo" ? pedido.valor : undefined) ?? 0,
+    editando?.valor ?? conta?.previsto ?? (pedido.modo === "novo" ? pedido.valor : undefined) ?? 0,
   );
+  // Salário informado pelo bruto: mostra a simulação ao lado do valor real.
+  const fixaLigada = conta?.fixa ?? (editando?.fixaId ? dados.fixas.find((f) => f.id === editando.fixaId) : undefined);
+  const simulacao = fixaLigada && ehSimulada(fixaLigada) ? simulacaoDa(fixaLigada) : null;
+  const confirmandoSalario = !!conta && !!simulacao;
   const [descricao, setDescricao] = useState(base?.descricao ?? "");
   const [categoria, setCategoria] = useState(base?.categoria ?? "");
   const [pagoPor, setPagoPor] = useState<PessoaId>(
@@ -81,19 +87,26 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeLancamento; fechar: () => v
 
   const titulo = editando
     ? "Editar lançamento"
-    : conta
-      ? conta.fixa.tipo === "receita" ? "Registrar recebimento" : "Pagar conta"
-      : "Novo lançamento";
+    : confirmandoSalario
+      ? "Confirmar salário"
+      : conta
+        ? conta.fixa.tipo === "receita" ? "Registrar recebimento" : "Pagar conta"
+        : "Novo lançamento";
   const rotuloEnviar = editando
     ? "Salvar alterações"
-    : conta
-      ? conta.fixa.tipo === "receita" ? "Marcar como recebida" : "Marcar como paga"
-      : tipo === "despesa" ? "Lançar despesa" : tipo === "receita" ? "Lançar receita" : "Registrar acerto";
+    : confirmandoSalario
+      ? "Confirmar valor recebido"
+      : conta
+        ? conta.fixa.tipo === "receita" ? "Marcar como recebida" : "Marcar como paga"
+        : tipo === "despesa" ? "Lançar despesa" : tipo === "receita" ? "Lançar receita" : "Registrar acerto";
   const feito = editando
     ? "Alterações salvas"
-    : conta
-      ? conta.fixa.tipo === "receita" ? "Marcada como recebida" : "Marcada como paga"
-      : tipo === "despesa" ? "Despesa lançada" : tipo === "receita" ? "Receita lançada" : "Acerto registrado";
+    : confirmandoSalario
+      ? "Salário confirmado"
+      : conta
+        ? conta.fixa.tipo === "receita" ? "Marcada como recebida" : "Marcada como paga"
+        : tipo === "despesa" ? "Despesa lançada" : tipo === "receita" ? "Receita lançada" : "Acerto registrado";
+  const diferenca = simulacao ? valor - simulacao.liquido : 0;
 
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +159,32 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeLancamento; fechar: () => v
           <Segmentado valor={tipo} opcoes={TIPOS} aoMudar={mudarTipo} rotulo="Tipo de lançamento" largo />
         ) : null}
 
-        <CampoValor valor={valor} aoMudar={(v) => { setValor(v); setErro(""); }} rotulo="Valor" grande autoFoco={pedido.modo === "novo"} />
+        {confirmandoSalario && simulacao ? (
+          <>
+            <p className="campo-dica">
+              Este é o valor simulado para {nomeDoMes(mes)}. Troque pelo líquido que caiu na conta e os relatórios passam a usar o valor real.
+            </p>
+            <QuadroSimulacao s={simulacao} />
+            <span className="rotulo-campo" style={{ fontSize: 14, fontWeight: 500 }}>Valor líquido recebido</span>
+          </>
+        ) : null}
+
+        <CampoValor
+          valor={valor}
+          aoMudar={(v) => { setValor(v); setErro(""); }}
+          rotulo={confirmandoSalario ? "Valor líquido recebido" : "Valor"}
+          grande
+          autoFoco={pedido.modo === "novo" || confirmandoSalario}
+          selecionarAoFocar={confirmandoSalario}
+        />
+
+        {simulacao && (editando || diferenca !== 0) ? (
+          <p className="diferenca">
+            {diferenca === 0
+              ? `Igual ao simulado (${formatar(simulacao.liquido)}).`
+              : `${formatar(Math.abs(diferenca))} ${diferenca > 0 ? "acima" : "abaixo"} do simulado (${formatar(simulacao.liquido)}).`}
+          </p>
+        ) : null}
 
         {tipo === "acerto" ? (
           <>

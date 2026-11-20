@@ -24,6 +24,10 @@ function achado(r: Resumo, contas: FixaDoMes[], mes: string, mesAtual: string): 
   const atrasadas = contas.filter((c) => c.estado === "atrasada" && c.fixa.tipo === "despesa");
   if (atrasadas.length === 1) return `${atrasadas[0]!.fixa.descricao} venceu e ainda não foi paga.`;
   if (atrasadas.length > 1) return `${atrasadas.length} contas venceram e ainda não foram pagas.`;
+  const salarioPendente = contas.find((c) => c.simulado && (c.estado === "atrasada" || c.estado === "hoje"));
+  if (salarioPendente) {
+    return `${salarioPendente.fixa.descricao} ${salarioPendente.estado === "hoje" ? "cai hoje" : "já devia ter caído"}: confirme o valor líquido.`;
+  }
   if (r.sobra < 0) return `O mês fecha ${formatar(-r.sobra)} no vermelho se nada mudar.`;
   const aPagar = contas.filter((c) => c.estado !== "paga" && c.fixa.tipo === "despesa");
   if (aPagar.length > 0) {
@@ -105,6 +109,15 @@ export default function Inicio() {
             <div>
               <Valor centavos={r.sobra} className={`resposta ${r.sobra < 0 ? "negativo" : ""}`} />
               <p className="mudo">{sobraNota}</p>
+              {r.aReceberSimulado > 0 ? (
+                <p className="pequeno" style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <span className="pilula aviso">Simulado</span>
+                  <span className="mudo">
+                    Inclui {formatar(r.aReceberSimulado)} de salário ainda não confirmado.{" "}
+                    <Link className="ligacao" href="/fixas">Confirmar</Link>
+                  </span>
+                </p>
+              ) : null}
             </div>
             <div className="sobra-trilho">
               <div className="pontas">

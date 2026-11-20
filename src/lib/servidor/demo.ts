@@ -2,6 +2,7 @@ import "server-only";
 import { dataNoMes, diaDe, mesDe, somarMeses } from "../datas";
 import { expandirParcelas, saldoCasal } from "../dominio";
 import { CATEGORIAS_INICIAIS } from "../padroes";
+import { simular } from "../salario";
 import type { Dados, Dono, Fixa, Lancamento, PessoaId } from "../tipos";
 
 /** Dados de exemplo, sempre relativos ao dia de hoje. Nada aqui é gravado. */
@@ -16,8 +17,8 @@ const ORCAMENTOS: Record<string, number> = {
 };
 
 const FIXAS: Fixa[] = [
-  fixa("sal-a", "Salário do Paulo", "receita", 680000, 5, "salario", "a", "a"),
-  fixa("sal-b", "Salário da Giovana", "receita", 590000, 5, "salario", "b", "b"),
+  salario("sal-a", "Salário do Paulo", 900000, 5, "a"),
+  salario("sal-b", "Salário da Giovana", 750000, 25, "b"),
   fixa("academia", "Academia", "despesa", 12990, 5, "saude", "a", "a"),
   fixa("aluguel", "Aluguel", "despesa", 240000, 10, "moradia", "a", "casal"),
   fixa("condominio", "Condomínio", "despesa", 52000, 10, "moradia", "a", "casal"),
@@ -32,8 +33,23 @@ function fixa(
   id: string, descricao: string, tipo: Fixa["tipo"], valor: number, dia: number,
   categoria: string, pagoPor: PessoaId, deQuem: Dono,
 ): Fixa {
-  return { id, descricao, tipo, valor, dia, categoria, pagoPor, deQuem, parteA: 50, ativa: true, inicio: "", fim: "" };
+  return {
+    id, descricao, tipo, valor, dia, categoria, pagoPor, deQuem, parteA: 50, ativa: true, inicio: "", fim: "",
+    bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0,
+  };
 }
+
+/** Salário informado pelo bruto, com a simulação de CLT e um plano de saúde descontado em folha. */
+function salario(id: string, descricao: string, bruto: number, dia: number, pessoa: PessoaId): Fixa {
+  const simulacao = { bruto, regime: "clt" as const, dependentes: 0, outrosDescontos: 18000 };
+  return {
+    ...fixa(id, descricao, "receita", simular(simulacao).liquido, dia, "salario", pessoa, pessoa),
+    ...simulacao,
+  };
+}
+
+/** Diferença pequena entre o líquido real e o simulado, como num holerite de verdade. */
+const AJUSTE_DO_HOLERITE = [1230, -840, 0];
 
 /** dia, descrição, valor, categoria, quem pagou, de quem é */
 type Modelo = [number, string, number, string, PessoaId, Dono];
@@ -102,7 +118,8 @@ export function dadosDeDemonstracao(hojeData: string): Dados {
       // No mês atual, o que vence perto de hoje ainda está por pagar.
       if (f.dia > (recuo === 0 ? limite - 2 : 31)) continue;
       novo({
-        data: dataNoMes(mes, f.dia), tipo: f.tipo, descricao: f.descricao, valor: f.valor,
+        data: dataNoMes(mes, f.dia), tipo: f.tipo, descricao: f.descricao,
+        valor: f.bruto ? f.valor + (AJUSTE_DO_HOLERITE[recuo] ?? 0) : f.valor,
         categoria: f.categoria, pagoPor: f.pagoPor, deQuem: f.deQuem,
         parcela: "", grupo: "", fixaId: f.id, mesRef: mes,
       });

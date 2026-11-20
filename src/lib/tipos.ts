@@ -39,10 +39,13 @@ export interface Categoria {
   arquivada: boolean;
 }
 
+export type Regime = "clt" | "outro";
+
 export interface Fixa {
   id: string;
   descricao: string;
   tipo: TipoCategoria;
+  /** Valor previsto por mês. Numa receita com bruto, é o líquido simulado. */
   valor: number;
   dia: number;
   categoria: string;
@@ -53,6 +56,11 @@ export interface Fixa {
   /** yyyy-mm; vazio = sempre. */
   inicio: string;
   fim: string;
+  /** Receita informada pelo bruto: o líquido é simulado até ser confirmado. 0 = sem simulação. */
+  bruto: number;
+  regime: Regime;
+  dependentes: number;
+  outrosDescontos: number;
 }
 
 export interface Config {
