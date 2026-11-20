@@ -1,7 +1,7 @@
 "use client";
 
-import { animate } from "motion";
-import { useEffect, useRef } from "react";
+import { animate, type AnimationPlaybackControls } from "motion";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 import type { ReactNode } from "react";
 import { formatar, partesBRL } from "@/lib/dinheiro";
@@ -81,6 +81,86 @@ export function Valor({ centavos, className = "" }: { centavos: number; classNam
   );
 }
 
+/** power3.out: a borda da frente sai rápido e assenta suave. */
+const SAIDA: [number, number, number, number] = [0.215, 0.61, 0.355, 1];
+
+interface Bordas {
+  l: number;
+  r: number;
+}
+
+/**
+ * Pílula que estica até o item ativo: a borda da frente corre na direção do movimento,
+ * a de trás sai um instante depois e alcança. Parece uma gota de vidro escorrendo.
+ * O item ativo é o filho que casa com `seletor`; a caixa precisa de position: relative.
+ */
+export function usePilula<C extends HTMLElement>(
+  chave: unknown,
+  seletor = '[aria-current="page"], [aria-pressed="true"]',
+) {
+  const caixa = useRef<C>(null);
+  const pilula = useRef<HTMLSpanElement>(null);
+  const antes = useRef<Bordas | null>(null);
+  const emCurso = useRef<AnimationPlaybackControls[]>([]);
+
+  useLayoutEffect(() => {
+    const c = caixa.current;
+    const p = pilula.current;
+    if (!c || !p) return;
+    const alvo = () => c.querySelector<HTMLElement>(seletor);
+    const medir = (a: HTMLElement): Bordas & { t: number; b: number } => ({
+      l: a.offsetLeft,
+      r: c.clientWidth - a.offsetLeft - a.offsetWidth,
+      t: a.offsetTop,
+      b: c.clientHeight - a.offsetTop - a.offsetHeight,
+    });
+    const pousar = (m: Bordas & { t: number; b: number }) => {
+      Object.assign(p.style, { left: `${m.l}px`, right: `${m.r}px`, top: `${m.t}px`, bottom: `${m.b}px` });
+      antes.current = { l: m.l, r: m.r };
+    };
+
+    emCurso.current.forEach((a) => a.stop());
+    emCurso.current = [];
+    const a = alvo();
+    if (!a) {
+      p.style.opacity = "0";
+      return;
+    }
+    const para = medir(a);
+    const de = antes.current;
+    const calma = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    p.style.opacity = "1";
+    if (!de || calma || (de.l === para.l && de.r === para.r)) {
+      pousar(para);
+    } else {
+      p.style.top = `${para.t}px`;
+      p.style.bottom = `${para.b}px`;
+      const indoParaDireita = para.l > de.l;
+      const frente = indoParaDireita ? "right" : "left";
+      const tras = indoParaDireita ? "left" : "right";
+      const valor = (lado: "left" | "right") => `${lado === "left" ? para.l : para.r}px`;
+      emCurso.current = [
+        animate(p, { [frente]: valor(frente) }, { duration: 0.36, ease: SAIDA }),
+        animate(p, { [tras]: valor(tras) }, { duration: 0.52, delay: 0.07, ease: [0.22, 1, 0.36, 1] }),
+      ];
+      antes.current = { l: para.l, r: para.r };
+    }
+
+    // Mudou o tamanho da caixa (janela, fonte): reposiciona sem animar.
+    let largura = c.clientWidth;
+    const obs = new ResizeObserver(() => {
+      if (c.clientWidth === largura) return;
+      largura = c.clientWidth;
+      const agora = alvo();
+      if (agora) pousar(medir(agora));
+    });
+    obs.observe(c);
+    return () => obs.disconnect();
+  }, [chave, seletor]);
+
+  return { caixa, pilula };
+}
+
 export interface Segmento {
   classe: string;
   valor: number;
@@ -123,15 +203,10 @@ export function Segmentado<T extends string>({
   rotulo: string;
   largo?: boolean;
 }) {
-  const indice = Math.max(0, opcoes.findIndex((o) => o.valor === valor));
+  const { caixa, pilula } = usePilula<HTMLDivElement>(valor);
   return (
-    <div className={`segmentado ${largo ? "largo" : ""}`} role="group" aria-label={rotulo}>
-      {/* As opções têm a mesma largura: o polegar anda uma largura inteira por opção. */}
-      <span
-        className="segmentado-polegar"
-        aria-hidden="true"
-        style={{ width: `calc((100% - 4px) / ${opcoes.length})`, transform: `translateX(calc(2px + ${indice * 100}%))` }}
-      />
+    <div ref={caixa} className={`segmentado ${largo ? "largo" : ""}`} role="group" aria-label={rotulo}>
+      <span ref={pilula} className="segmentado-polegar" aria-hidden="true" />
       {opcoes.map((o) => (
         <button key={o.valor} type="button" aria-pressed={o.valor === valor} onClick={() => aoMudar(o.valor)}>
           {o.rotulo}

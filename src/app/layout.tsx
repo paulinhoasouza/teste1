@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/inter";
+import "@fontsource-variable/outfit";
 import "./globals.css";
 import { SCRIPT_DE_TEMA } from "@/lib/tema";
 
@@ -21,14 +21,18 @@ export default function Raiz({ children }: { children: React.ReactNode }) {
     // O script do tema muda atributos do <html> antes da hidratação.
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <meta name="theme-color" content="#f5f5f7" />
+        <meta name="theme-color" content="#efe8df" />
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_DE_TEMA }} />
       </head>
       <body>
         <div className="ambiente" aria-hidden="true">
+          <span className="luz-1" />
+          <span className="luz-2" />
+          <span className="luz-3" />
           <span className="halo-a" />
           <span className="halo-b" />
-          <span className="halo-encontro" />
+          <span className="feixes" />
+          <span className="grao" />
         </div>
         {children}
       </body>

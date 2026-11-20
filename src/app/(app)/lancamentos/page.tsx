@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Titulo } from "@/componentes/casca";
 import { LinhaLancamento, useNomeDaCategoria } from "@/componentes/linhas";
 import { useApp } from "@/componentes/provedor";
@@ -22,6 +22,11 @@ export default function Lancamentos() {
   const [dono, setDono] = useState<"todos" | Dono>("todos");
   const [cat, setCat] = useState("");
   const [busca, setBusca] = useState("");
+  const campoBusca = useRef<HTMLInputElement>(null);
+  // Vindo do atalho de busca do trilho: já abre com o cursor no campo.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("busca")) campoBusca.current?.focus();
+  }, []);
 
   const doMes = useMemo(() => lancamentosDoMes(dados.lancamentos, mes), [dados.lancamentos, mes]);
   const lista = useMemo(() => {
@@ -91,7 +96,7 @@ export default function Lancamentos() {
             </select>
             <div className="busca">
               <Search size={16} strokeWidth={1.5} aria-hidden="true" />
-              <input className="entrada" type="search" aria-label="Buscar lançamento" placeholder="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} />
+              <input ref={campoBusca} className="entrada" type="search" aria-label="Buscar lançamento" placeholder="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} />
             </div>
           </div>
 

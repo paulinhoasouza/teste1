@@ -67,4 +67,4 @@ Para usar o banco localmente, copie `.env.example` para `.env.local` e preencha.
 
 ## Por dentro
 
-Next.js (App Router) e TypeScript, com o visual no padrão Apple: fonte do sistema, modo escuro, barras translúcidas e folhas que sobem de baixo e podem ser arrastadas para fechar (molas da biblioteca Motion). A lógica de dinheiro é pura e testada em `src/lib` (`dominio.ts`, `acoes.ts`, `registros.ts`, `salario.ts`, `relatorio.ts`); o banco é acessado pela API de dados do Supabase em `src/lib/servidor/banco.ts`; as telas ficam em `src/app/(app)`.
+Next.js (App Router) e TypeScript, com visual de vidro sobre luz quente: painel e barras translúcidas (o quanto o vidro é fosco se ajusta em "Ajustar vidro"), tema claro, escuro ou automático, fonte Outfit, uma pílula que estica até a aba escolhida e folhas que sobem de baixo e podem ser arrastadas para fechar (molas da biblioteca Motion). A lógica de dinheiro é pura e testada em `src/lib` (`dominio.ts`, `acoes.ts`, `registros.ts`, `salario.ts`, `relatorio.ts`); o banco é acessado pela API de dados do Supabase em `src/lib/servidor/banco.ts`; as telas ficam em `src/app/(app)`.

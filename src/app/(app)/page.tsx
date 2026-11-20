@@ -38,7 +38,7 @@ function achado(r: Resumo, contas: FixaDoMes[], mes: string, mesAtual: string): 
 }
 
 export default function Inicio() {
-  const { dados, mes, hoje, nomes, abrirLancamento } = useApp();
+  const { dados, mes, hoje, nomes, quem, abrirLancamento } = useApp();
   const [escopo, setEscopo] = useState<Dono>("casal");
   const mesAtual = mesDe(hoje);
 
@@ -90,7 +90,7 @@ export default function Inicio() {
 
   return (
     <>
-      <Titulo titulo={nomeDoMes(mes)} achado={achado(casal, contas, mes, mesAtual)} mesNoTitulo />
+      <Titulo titulo={nomeDoMes(mes)} sobre={saudacao(nomes[quem])} achado={achado(casal, contas, mes, mesAtual)} mesNoTitulo />
 
       <div className="grade">
         <Cartao
@@ -282,4 +282,10 @@ export default function Inicio() {
       </div>
     </>
   );
+}
+
+function saudacao(nome: string): string {
+  const h = new Date().getHours();
+  const parte = h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+  return `${parte}, ${nome}`;
 }

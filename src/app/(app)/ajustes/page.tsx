@@ -3,7 +3,7 @@
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Titulo } from "@/componentes/casca";
-import { EscolhaDeAparencia } from "@/componentes/aparencia";
+import { EscolhaDeAparencia, ReguaDeVidro } from "@/componentes/aparencia";
 import { CampoValor } from "@/componentes/campos";
 import { useApp } from "@/componentes/provedor";
 import { formatar } from "@/lib/dinheiro";
@@ -36,10 +36,12 @@ export default function Ajustes() {
       <section className="secao" aria-labelledby="s-aparencia">
         <div className="secao-rotulo">
           <h2 id="s-aparencia">Aparência</h2>
-          <p>Automático segue o modo do seu celular ou computador. A escolha fica guardada neste aparelho.</p>
+          <p>Automático segue o modo do seu celular ou computador. O vidro vai de transparente, deixando ver a luz do fundo, a fosco, mais fácil de ler. Fica guardado neste aparelho.</p>
         </div>
         <div className="painel">
           <EscolhaDeAparencia />
+          <hr className="divisa" />
+          <ReguaDeVidro />
         </div>
       </section>
 
