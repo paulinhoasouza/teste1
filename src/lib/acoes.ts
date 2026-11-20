@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { dataValida, mesValido } from "./datas";
-import { expandirParcelas, outra } from "./dominio";
-import { simular } from "./salario";
+import { dataNoMes, dataValida, mesValido } from "./datas";
+import { expandirParcelas, fixaNoMes, outra } from "./dominio";
+import { previstoDa, simular } from "./salario";
 import type { Categoria, Config, Dados, Fixa, Lancamento, PessoaId } from "./tipos";
 
 /** Erro que pode ser mostrado à pessoa como está. */
@@ -41,6 +41,9 @@ const camposFixa = {
   regime: z.enum(["clt", "outro"]).optional(),
   dependentes: z.number().int().min(0).max(20).optional(),
   outrosDescontos: centavos.optional(),
+  natureza: z.enum(["conta", "assinatura"]).optional(),
+  periodicidade: z.enum(["mensal", "anual"]).optional(),
+  mesAnual: z.number().int().min(0).max(12).optional(),
 };
 
 export const esquemaAcao = z.discriminatedUnion("acao", [
@@ -61,6 +64,11 @@ export const esquemaAcao = z.discriminatedUnion("acao", [
   z.object({ acao: z.literal("lancamento.remover"), id: z.string().min(1), grupo: z.boolean() }),
   z.object({ acao: z.literal("fixa.salvar"), id: z.string().optional(), ...camposFixa }),
   z.object({ acao: z.literal("fixa.remover"), id: z.string().min(1) }),
+  z.object({
+    acao: z.literal("fixas.pagarMes"),
+    mes: z.string(),
+    ids: z.array(z.string().min(1)).min(1).max(100),
+  }),
   z.object({
     acao: z.literal("categoria.salvar"),
     id: z.string().optional(),
@@ -188,8 +196,12 @@ export function planejar(entrada: unknown, dados: Dados, ctx: Contexto): Patch {
       const {
         acao: _a, id, inicio = "", fim = "",
         bruto: brutoInformado = 0, regime = "clt", dependentes = 0, outrosDescontos = 0,
+        natureza = "conta", periodicidade = "mensal", mesAnual = 0,
         ...campos
       } = acao;
+      if (natureza === "assinatura" && campos.tipo !== "despesa") throw new ErroDeAcao("Assinatura é sempre uma despesa.");
+      if (periodicidade === "anual" && (mesAnual < 1 || mesAnual > 12)) throw new ErroDeAcao("Escolha o mês da cobrança anual.");
+      const ciclo = { natureza, periodicidade, mesAnual: periodicidade === "anual" ? mesAnual : 0 };
       if (inicio && !mesValido(inicio)) throw new ErroDeAcao("Mês de início inválido.");
       if (fim && !mesValido(fim)) throw new ErroDeAcao("Mês de término inválido.");
       if (inicio && fim && fim < inicio) throw new ErroDeAcao("O término não pode vir antes do começo.");
@@ -202,7 +214,42 @@ export function planejar(entrada: unknown, dados: Dados, ctx: Contexto): Patch {
       const cat = dados.categorias.find((c) => c.id === campos.categoria);
       if (!cat || cat.tipo !== campos.tipo) throw new ErroDeAcao("Escolha uma categoria.");
       if (id && !dados.fixas.some((f) => f.id === id)) throw new ErroDeAcao("Essa conta fixa não existe mais.");
-      return { fixas: { salvar: [{ ...campos, ...simulacao, valor, id: id || ctx.novoId(), inicio, fim }] } };
+      return { fixas: { salvar: [{ ...campos, ...simulacao, ...ciclo, valor, id: id || ctx.novoId(), inicio, fim }] } };
+    }
+
+    case "fixas.pagarMes": {
+      if (!mesValido(acao.mes)) throw new ErroDeAcao("Mês inválido.");
+      const pagas = new Set(dados.lancamentos.filter((l) => l.fixaId && l.mesRef === acao.mes).map((l) => l.fixaId));
+      const salvar: Lancamento[] = [];
+      for (const id of new Set(acao.ids)) {
+        const f = dados.fixas.find((x) => x.id === id);
+        // Só despesas: salário e outras receitas pedem o valor real, uma a uma.
+        if (!f || f.tipo !== "despesa" || pagas.has(id) || !fixaNoMes(f, acao.mes)) continue;
+        salvar.push(
+          validarLancamento(
+            {
+              id: ctx.novoId(),
+              data: dataNoMes(acao.mes, f.dia),
+              tipo: "despesa",
+              descricao: f.descricao,
+              valor: previstoDa(f),
+              categoria: f.categoria,
+              pagoPor: f.pagoPor,
+              deQuem: f.deQuem,
+              parteA: f.parteA,
+              parcela: "",
+              grupo: "",
+              fixaId: f.id,
+              mesRef: acao.mes,
+              criadoEm: ctx.agora,
+              criadoPor: ctx.quem,
+            },
+            dados,
+          ),
+        );
+      }
+      if (salvar.length === 0) throw new ErroDeAcao("Nada para marcar: essas contas já estão pagas neste mês.");
+      return { lancamentos: { salvar } };
     }
 
     case "fixa.remover": {

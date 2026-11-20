@@ -12,7 +12,7 @@ export function partes(l: Divisivel): { a: number; b: number } {
   return { a, b: l.valor - a };
 }
 
-function peso(l: Divisivel, escopo: Dono): number {
+export function peso(l: Divisivel, escopo: Dono): number {
   if (escopo === "casal") return l.valor;
   return partes(l)[escopo];
 }
@@ -86,7 +86,23 @@ export interface FixaDoMes {
 
 /** A conta fixa vale para o mês? Ativa e dentro do período, se houver. */
 export function fixaNoMes(f: Fixa, mes: string): boolean {
+  return (
+    f.ativa &&
+    (!f.inicio || f.inicio <= mes) &&
+    (!f.fim || mes <= f.fim) &&
+    (f.periodicidade !== "anual" || Number(mes.slice(5, 7)) === f.mesAnual)
+  );
+}
+
+/** Está valendo neste mês, mesmo que a cobrança anual caia em outro mês? */
+export function fixaVigente(f: Fixa, mes: string): boolean {
   return f.ativa && (!f.inicio || f.inicio <= mes) && (!f.fim || mes <= f.fim);
+}
+
+/** Custo por mês: o valor previsto, ou um doze avos dele quando a cobrança é anual. */
+export function valorMensal(f: Fixa): number {
+  const previsto = previstoDa(f);
+  return f.periodicidade === "anual" ? Math.round(previsto / 12) : previsto;
 }
 
 export function fixasDoMes(

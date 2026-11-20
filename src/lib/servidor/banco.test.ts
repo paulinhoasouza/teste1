@@ -119,7 +119,7 @@ describe("banco", () => {
       fixas: {
         salvar: [{
           id: "aluguel01", descricao: "Aluguel", tipo: "despesa", valor: 240000, dia: 10, categoria: "mercado",
-          pagoPor: "a", deQuem: "casal", parteA: 50, ativa: true, inicio: "", fim: "", bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0,
+          pagoPor: "a", deQuem: "casal", parteA: 50, ativa: true, inicio: "", fim: "", bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0, natureza: "conta", periodicidade: "mensal", mesAnual: 0,
         }],
       },
     });

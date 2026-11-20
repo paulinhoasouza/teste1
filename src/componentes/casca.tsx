@@ -1,27 +1,47 @@
 "use client";
 
-import { CalendarCheck, Check, ChevronLeft, ChevronRight, House, List, LogOut, Plus, Settings, Users } from "lucide-react";
+import {
+  CalendarCheck, ChartColumn, Check, ChevronLeft, ChevronRight, Ellipsis, House, List, LogOut, Plus, Repeat, Settings, Users, X,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { mesDe, nomeDoMes, somarMeses } from "@/lib/datas";
 import { BoasVindas } from "./boas-vindas";
 import { FormFixa } from "./form-fixa";
+import { Folha } from "./folha";
 import { FormLancamento } from "./form-lancamento";
 import { useApp } from "./provedor";
 import { Avatar, Marca } from "./ui";
 
-const DESTINOS = [
-  { href: "/", rotulo: "Início", Icone: House },
-  { href: "/lancamentos", rotulo: "Lançamentos", Icone: List },
-  { href: "/casal", rotulo: "Casal", Icone: Users },
-  { href: "/fixas", rotulo: "Contas fixas", curto: "Fixas", Icone: CalendarCheck },
-  { href: "/ajustes", rotulo: "Ajustes", Icone: Settings },
+interface Destino {
+  href: string;
+  rotulo: string;
+  Icone: LucideIcon;
+  /** Cor do ícone na lista "Mais", como nos Ajustes do iOS. */
+  cor: string;
+}
+
+const VISAO: Destino[] = [
+  { href: "/", rotulo: "Início", Icone: House, cor: "#0071e3" },
+  { href: "/relatorio", rotulo: "Relatório", Icone: ChartColumn, cor: "#248a3d" },
+  { href: "/casal", rotulo: "Casal", Icone: Users, cor: "#e3175e" },
 ];
+const ORGANIZAR: Destino[] = [
+  { href: "/lancamentos", rotulo: "Lançamentos", Icone: List, cor: "#636366" },
+  { href: "/fixas", rotulo: "Contas fixas", Icone: CalendarCheck, cor: "#c93400" },
+  { href: "/assinaturas", rotulo: "Assinaturas", Icone: Repeat, cor: "#8944ab" },
+];
+const AJUSTES: Destino = { href: "/ajustes", rotulo: "Ajustes", Icone: Settings, cor: "#636366" };
+const TODOS = [...VISAO, ...ORGANIZAR, AJUSTES];
+/** No celular, o que não cabe na barra de abas vai para "Mais". */
+const NO_MAIS = ["/casal", "/fixas", "/assinaturas", "/ajustes"];
 
 export function Casca({ children }: { children: ReactNode }) {
   const { dados, nomes, abrirLancamento } = useApp();
   const caminho = usePathname();
+  const [maisAberto, setMaisAberto] = useState(false);
   const { config } = dados;
 
   if (!config.nomeA || !config.nomeB) {
@@ -45,9 +65,16 @@ export function Casca({ children }: { children: ReactNode }) {
           </span>
         </Link>
         <nav className="nav" aria-label="Principal">
-          {DESTINOS.map(({ href, rotulo, Icone }) => (
+          {VISAO.map(({ href, rotulo, Icone }) => (
             <Link key={href} href={href} aria-current={atual(href)}>
-              <Icone size={18} strokeWidth={1.5} />
+              <Icone size={18} strokeWidth={1.75} />
+              {rotulo}
+            </Link>
+          ))}
+          <p className="nav-grupo">Organizar</p>
+          {[...ORGANIZAR, AJUSTES].map(({ href, rotulo, Icone }) => (
+            <Link key={href} href={href} aria-current={atual(href)}>
+              <Icone size={18} strokeWidth={1.75} />
               {rotulo}
             </Link>
           ))}
@@ -63,7 +90,7 @@ export function Casca({ children }: { children: ReactNode }) {
           <span className="marca-nome">A dois</span>
         </Link>
         <nav className="nav-topo" aria-label="Principal">
-          {DESTINOS.map(({ href, rotulo }) => (
+          {TODOS.map(({ href, rotulo }) => (
             <Link key={href} href={href} aria-current={atual(href)}>
               {rotulo}
             </Link>
@@ -85,22 +112,54 @@ export function Casca({ children }: { children: ReactNode }) {
       </main>
 
       <nav className="nav-baixo" aria-label="Principal, no rodapé">
-        {DESTINOS.slice(0, 2).map(({ href, rotulo, Icone }) => (
+        {[VISAO[0]!, ORGANIZAR[0]!].map(({ href, rotulo, Icone }) => (
           <Link key={href} href={href} aria-current={atual(href)}>
-            <Icone size={22} strokeWidth={1.5} />
+            <Icone size={24} strokeWidth={1.75} />
             {rotulo}
           </Link>
         ))}
         <button type="button" className="lancar" aria-label="Novo lançamento" onClick={() => abrirLancamento({ modo: "novo" })}>
-          <Plus size={24} strokeWidth={2} />
+          <Plus size={26} strokeWidth={2.25} />
         </button>
-        {DESTINOS.slice(2, 4).map(({ href, rotulo, curto, Icone }) => (
-          <Link key={href} href={href} aria-current={atual(href)}>
-            <Icone size={22} strokeWidth={1.5} />
-            {curto ?? rotulo}
-          </Link>
-        ))}
+        <Link href="/relatorio" aria-current={atual("/relatorio")}>
+          <ChartColumn size={24} strokeWidth={1.75} />
+          Relatório
+        </Link>
+        <button
+          type="button"
+          className="aba"
+          aria-haspopup="dialog"
+          aria-expanded={maisAberto}
+          aria-current={NO_MAIS.includes(caminho) ? "page" : undefined}
+          style={NO_MAIS.includes(caminho) ? { color: "var(--accent)" } : undefined}
+          onClick={() => setMaisAberto(true)}
+        >
+          <Ellipsis size={24} strokeWidth={1.75} />
+          Mais
+        </button>
       </nav>
+
+      <Folha aberta={maisAberto} aoFechar={() => setMaisAberto(false)} rotuloId="titulo-mais">
+        <div className="folha-topo">
+          <h2 id="titulo-mais">Mais</h2>
+          <button type="button" className="fechar" aria-label="Fechar" onClick={() => setMaisAberto(false)}>
+            <X size={16} strokeWidth={2.25} />
+          </button>
+        </div>
+        <div className="folha-corpo">
+          <nav className="grupo-lista" aria-label="Mais destinos">
+            {TODOS.filter((d) => NO_MAIS.includes(d.href)).map(({ href, rotulo, Icone, cor }) => (
+              <Link key={href} href={href} aria-current={atual(href)} onClick={() => setMaisAberto(false)}>
+                <span className="icone-quadrado" style={{ background: cor }}>
+                  <Icone size={17} strokeWidth={2} />
+                </span>
+                {rotulo}
+                <ChevronRight className="seta" size={18} strokeWidth={2} />
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </Folha>
 
       <FormLancamento />
       <FormFixa />

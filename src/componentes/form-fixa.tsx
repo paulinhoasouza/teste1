@@ -1,53 +1,55 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { mesDe } from "@/lib/datas";
+import { formatar } from "@/lib/dinheiro";
 import { simular } from "@/lib/salario";
-import type { Dono, Fixa, PessoaId, Regime, TipoCategoria } from "@/lib/tipos";
+import type { Dono, Fixa, Natureza, Periodicidade, PessoaId, Regime, TipoCategoria } from "@/lib/tipos";
 import { CampoMes, CampoValor, EscolhaDono, EscolhaPessoa } from "./campos";
+import { Folha } from "./folha";
 import { useApp, type PedidoDeFixa } from "./provedor";
 import { QuadroSimulacao } from "./simulacao";
 import { Segmentado } from "./ui";
 
 export function FormFixa() {
   const { pedidoFixa, abrirFixa } = useApp();
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (pedidoFixa && !d.open) d.showModal();
-    if (!pedidoFixa && d.open) d.close();
-  }, [pedidoFixa]);
-
   return (
-    <dialog
-      ref={ref}
-      className="folha"
-      aria-labelledby="titulo-fixa"
-      onClose={() => abrirFixa(null)}
-      onClick={(e) => {
-        if (e.target === ref.current) abrirFixa(null);
-      }}
-    >
+    <Folha aberta={!!pedidoFixa} aoFechar={() => abrirFixa(null)} rotuloId="titulo-fixa">
       {pedidoFixa ? <Corpo pedido={pedidoFixa} fechar={() => abrirFixa(null)} /> : null}
-    </dialog>
+    </Folha>
   );
 }
 
 type Informar = "bruto" | "liquido";
 
+/** Nomes comuns, para não precisar digitar. O preço muda: cada um informa o seu. */
+const SUGESTOES = [
+  "Netflix", "Spotify", "Disney+", "Max", "Prime Video", "Globoplay", "YouTube Premium",
+  "Apple One", "iCloud+", "PS Plus", "Xbox Game Pass", "Nintendo Switch Online",
+  "Claude", "ChatGPT", "Google One", "Microsoft 365",
+];
+
+const MESES = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
 function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void }) {
   const { dados, quem, nomes, hoje, executar } = useApp();
   const fixa: Fixa | null = pedido.fixa;
-  const [tipo, setTipo] = useState<TipoCategoria>(fixa?.tipo ?? pedido.tipo ?? "despesa");
+  const natureza: Natureza = fixa?.natureza ?? pedido.natureza ?? "conta";
+  const assinatura = natureza === "assinatura";
+  const [tipo, setTipo] = useState<TipoCategoria>(fixa?.tipo ?? (assinatura ? "despesa" : pedido.tipo) ?? "despesa");
   const [descricao, setDescricao] = useState(fixa?.descricao ?? "");
   const [valor, setValor] = useState(fixa?.valor ?? 0);
   const [dia, setDia] = useState(String(fixa?.dia ?? (pedido.tipo === "receita" ? 5 : 10)));
+  const categoriaPadrao = (id: string) => dados.categorias.find((c) => c.id === id && !c.arquivada)?.id ?? "";
   const [categoria, setCategoria] = useState(
-    fixa?.categoria ?? (pedido.tipo === "receita" ? (dados.categorias.find((c) => c.id === "salario")?.id ?? "") : ""),
+    fixa?.categoria ?? (assinatura ? categoriaPadrao("assinaturas") : pedido.tipo === "receita" ? categoriaPadrao("salario") : ""),
   );
+  const [periodicidade, setPeriodicidade] = useState<Periodicidade>(fixa?.periodicidade ?? "mensal");
+  const [mesAnual, setMesAnual] = useState(fixa?.mesAnual || Number(hoje.slice(5, 7)));
   const [pagoPor, setPagoPor] = useState<PessoaId>(fixa?.pagoPor ?? quem);
   const [deQuem, setDeQuem] = useState<Dono>(fixa?.deQuem ?? pedido.deQuem ?? (pedido.tipo === "receita" ? quem : "casal"));
   const [parteA, setParteA] = useState(fixa?.parteA ?? dados.config.parteAPadrao);
@@ -72,7 +74,7 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void })
   const enviar = (e: React.FormEvent) => {
     e.preventDefault();
     const d = Number(dia);
-    if (!descricao.trim()) return setErro("Dê um nome à conta.");
+    if (!descricao.trim()) return setErro(assinatura ? "Dê um nome à assinatura." : "Dê um nome à conta.");
     if (peloBruto && bruto <= 0) return setErro("Informe o salário bruto.");
     if (peloBruto && simulacao.liquido <= 0) return setErro("Os descontos não podem ser maiores que o salário bruto.");
     if (!peloBruto && valor <= 0) return setErro("Informe o valor.");
@@ -98,15 +100,20 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void })
         regime,
         dependentes: peloBruto && regime === "clt" ? dependentes : 0,
         outrosDescontos: peloBruto ? outros : 0,
+        natureza,
+        periodicidade: receita ? "mensal" : periodicidade,
+        mesAnual: !receita && periodicidade === "anual" ? mesAnual : 0,
       },
-      fixa ? "Alterações salvas" : receita ? "Receita fixa criada" : "Conta fixa criada",
+      fixa ? "Alterações salvas" : assinatura ? "Assinatura adicionada" : receita ? "Receita fixa criada" : "Conta fixa criada",
     );
     fechar();
   };
 
-  const titulo = fixa
-    ? receita ? "Editar receita fixa" : "Editar conta fixa"
-    : receita ? "Nova receita fixa" : "Nova conta fixa";
+  const titulo = assinatura
+    ? fixa ? "Editar assinatura" : "Nova assinatura"
+    : fixa
+      ? receita ? "Editar receita fixa" : "Editar conta fixa"
+      : receita ? "Nova receita fixa" : "Nova conta fixa";
 
   return (
     <form onSubmit={enviar} style={{ display: "contents" }} noValidate>
@@ -118,7 +125,7 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void })
       </div>
 
       <div className="folha-corpo">
-        {!fixa ? (
+        {!fixa && !assinatura ? (
           <Segmentado
             valor={tipo}
             opcoes={[{ valor: "despesa", rotulo: "A pagar" }, { valor: "receita", rotulo: "A receber" }]}
@@ -137,9 +144,18 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void })
           <label htmlFor="f-descricao">Nome</label>
           <input
             id="f-descricao" className="entrada" value={descricao} maxLength={120} autoComplete="off"
-            placeholder={receita ? `Salário de ${nomes[quem]}` : "Aluguel, internet, academia"}
+            placeholder={assinatura ? "Netflix, PS Plus, Claude" : receita ? `Salário de ${nomes[quem]}` : "Aluguel, internet, academia"}
             onChange={(e) => { setDescricao(e.target.value); limpar(); }}
           />
+          {assinatura && !fixa ? (
+            <div className="sugestoes" role="group" aria-label="Sugestões de nome">
+              {SUGESTOES.map((n) => (
+                <button key={n} type="button" className="ficha" aria-pressed={descricao === n} onClick={() => { setDescricao(n); limpar(); }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {receita ? (
@@ -165,7 +181,7 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void })
 
         <div className="dois">
           <div className="campo">
-            <label htmlFor="f-valor">{peloBruto ? "Salário bruto" : "Valor por mês"}</label>
+            <label htmlFor="f-valor">{peloBruto ? "Salário bruto" : !receita && periodicidade === "anual" ? "Valor por ano" : "Valor por mês"}</label>
             {peloBruto ? (
               <CampoValor id="f-valor" valor={bruto} aoMudar={(v) => { setBruto(v); limpar(); }} rotulo="Salário bruto" />
             ) : (
@@ -173,10 +189,39 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void })
             )}
           </div>
           <div className="campo">
-            <label htmlFor="f-dia">{receita ? "Dia em que entra" : "Dia do vencimento"}</label>
+            <label htmlFor="f-dia">{receita ? "Dia em que entra" : assinatura ? "Dia da cobrança" : "Dia do vencimento"}</label>
             <input id="f-dia" className="entrada num" inputMode="numeric" value={dia} onChange={(e) => { setDia(e.target.value.replace(/\D/g, "").slice(0, 2)); limpar(); }} />
           </div>
         </div>
+
+        {!receita ? (
+          <div className="campo">
+            <span className="rotulo-campo">Cobrança</span>
+            <Segmentado
+              valor={periodicidade}
+              aoMudar={(v) => { setPeriodicidade(v); limpar(); }}
+              rotulo="Cobrança"
+              largo
+              opcoes={[
+                { valor: "mensal", rotulo: "Todo mês" },
+                { valor: "anual", rotulo: "Uma vez por ano" },
+              ]}
+            />
+            {periodicidade === "anual" ? (
+              <>
+                <label className="so-leitor" htmlFor="f-mes-anual">Mês da cobrança</label>
+                <select id="f-mes-anual" className="selecao" value={mesAnual} onChange={(e) => setMesAnual(Number(e.target.value))}>
+                  {MESES.map((m, i) => (
+                    <option key={m} value={i + 1}>Cobra em {m}</option>
+                  ))}
+                </select>
+                <p className="campo-dica">
+                  Aparece para pagar só em {MESES[mesAnual - 1]}. No relatório, conta como {valor > 0 ? `${formatar(Math.round(valor / 12))} por mês` : "um doze avos por mês"}.
+                </p>
+              </>
+            ) : null}
+          </div>
+        ) : null}
 
         {peloBruto ? (
           <>
@@ -248,10 +293,10 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void })
         {fixa ? (
           <label className="entre" style={{ cursor: "pointer" }}>
             <span>
-              <span className="rotulo-campo" style={{ display: "block", fontSize: 14, fontWeight: 500 }}>Conta ativa</span>
+              <span style={{ display: "block", fontSize: 16, fontWeight: 500 }}>{assinatura ? "Assinatura ativa" : "Conta ativa"}</span>
               <span className="campo-dica">Desligue para pausar sem perder o histórico.</span>
             </span>
-            <input type="checkbox" checked={ativa} onChange={(e) => setAtiva(e.target.checked)} style={{ width: 20, height: 20, accentColor: "var(--text)" }} />
+            <input type="checkbox" role="switch" className="interruptor" checked={ativa} onChange={(e) => setAtiva(e.target.checked)} />
           </label>
         ) : null}
 
@@ -272,7 +317,7 @@ function Corpo({ pedido, fechar }: { pedido: PedidoDeFixa; fechar: () => void })
         <div className="folha-pe">
           {fixa ? <button type="button" className="botao perigo" onClick={() => setExcluindo(true)}>Excluir</button> : null}
           <button type="submit" className="botao primario alto">
-            {fixa ? "Salvar alterações" : receita ? "Criar receita fixa" : "Criar conta fixa"}
+            {fixa ? "Salvar alterações" : assinatura ? "Adicionar assinatura" : receita ? "Criar receita fixa" : "Criar conta fixa"}
           </button>
         </div>
       )}

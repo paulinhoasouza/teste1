@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { ErroDeAcao, aplicar, planejar, type Acao, type Patch } from "@/lib/acoes";
 import { hoje as hojeAgora, mesDe } from "@/lib/datas";
 import type { FixaDoMes } from "@/lib/dominio";
-import type { Dados, Dono, Fixa, Lancamento, PessoaId, TipoCategoria, TipoLancamento } from "@/lib/tipos";
+import type { Dados, Dono, Fixa, Lancamento, Natureza, PessoaId, TipoCategoria, TipoLancamento } from "@/lib/tipos";
 
 export type PedidoDeLancamento =
   | { modo: "novo"; tipo?: TipoLancamento; valor?: number; pagoPor?: PessoaId }
@@ -13,7 +13,7 @@ export type PedidoDeLancamento =
   | { modo: "pagar"; conta: FixaDoMes };
 
 /** Editar uma conta fixa, ou criar uma nova já com tipo e dono escolhidos. */
-export type PedidoDeFixa = { fixa: Fixa | null; tipo?: TipoCategoria; deQuem?: Dono };
+export type PedidoDeFixa = { fixa: Fixa | null; tipo?: TipoCategoria; deQuem?: Dono; natureza?: Natureza };
 
 interface App {
   dados: Dados;

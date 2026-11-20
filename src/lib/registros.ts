@@ -75,6 +75,7 @@ export function fixaParaRegistro(f: Fixa): Registro {
     ativa: f.ativa, inicio: f.inicio, fim: f.fim,
     bruto: paraReais(f.bruto), regime: f.regime, dependentes: f.dependentes,
     outros_descontos: paraReais(f.outrosDescontos),
+    natureza: f.natureza, periodicidade: f.periodicidade, mes_anual: f.mesAnual,
   };
 }
 
@@ -96,6 +97,9 @@ export function registroParaFixa(r: Registro): Fixa {
     regime: txt(r.regime) === "outro" ? "outro" : "clt",
     dependentes: inteiro(r.dependentes, 0, 0, 20),
     outrosDescontos: Math.max(0, deReais(r.outros_descontos)),
+    natureza: txt(r.natureza) === "assinatura" ? "assinatura" : "conta",
+    periodicidade: txt(r.periodicidade) === "anual" ? "anual" : "mensal",
+    mesAnual: txt(r.periodicidade) === "anual" ? inteiro(r.mes_anual, 1, 1, 12) : 0,
   };
 }
 

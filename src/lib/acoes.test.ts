@@ -16,7 +16,7 @@ function base(p: Partial<Dados> = {}): Dados {
     fixas: [
       {
         id: "aluguel", descricao: "Aluguel", tipo: "despesa", valor: 240000, dia: 10, categoria: "mercado",
-        pagoPor: "a", deQuem: "casal", parteA: 50, ativa: true, inicio: "", fim: "", bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0,
+        pagoPor: "a", deQuem: "casal", parteA: 50, ativa: true, inicio: "", fim: "", bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0, natureza: "conta", periodicidade: "mensal", mesAnual: 0,
       },
     ],
     lancamentos: [],
@@ -151,6 +151,43 @@ describe("conta fixa: período e salário bruto", () => {
 
   it("numa despesa, ignora os campos de salário", () => {
     const desp = { ...receita, tipo: "despesa" as const, categoria: "mercado", valor: 5000, bruto: 900000, outrosDescontos: 100 };
-    expect(planejar(desp, comSalario(), ctx).fixas?.salvar?.[0]).toMatchObject({ bruto: 0, outrosDescontos: 0, valor: 5000 });
+    expect(planejar(desp, comSalario(), ctx).fixas?.salvar?.[0]).toMatchObject({ bruto: 0, outrosDescontos: 0, natureza: "conta", periodicidade: "mensal", mesAnual: 0, valor: 5000 });
+  });
+});
+
+describe("assinaturas", () => {
+  const comAssinaturas = () =>
+    base({
+      categorias: [{ id: "assinaturas", nome: "Assinaturas", tipo: "despesa", orcamento: 0, ordem: 1, arquivada: false }],
+      fixas: [
+        { id: "streaming", descricao: "Streaming", tipo: "despesa", valor: 5590, dia: 12, categoria: "assinaturas", pagoPor: "b", deQuem: "casal", parteA: 50, ativa: true, inicio: "", fim: "", bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0, natureza: "assinatura", periodicidade: "mensal", mesAnual: 0 },
+        { id: "psplus", descricao: "PS Plus", tipo: "despesa", valor: 41990, dia: 3, categoria: "assinaturas", pagoPor: "a", deQuem: "a", parteA: 50, ativa: true, inicio: "", fim: "", bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0, natureza: "assinatura", periodicidade: "anual", mesAnual: 3 },
+      ],
+    });
+
+  it("salva assinatura anual com o mês da cobrança, e exige esse mês", () => {
+    const nova = {
+      acao: "fixa.salvar" as const, descricao: "Claude", tipo: "despesa" as const, valor: 11000, dia: 8,
+      categoria: "assinaturas", pagoPor: "a" as const, deQuem: "a" as const, parteA: 50, ativa: true,
+      natureza: "assinatura" as const, periodicidade: "anual" as const, mesAnual: 6,
+    };
+    expect(planejar(nova, comAssinaturas(), ctx).fixas?.salvar?.[0]).toMatchObject({ natureza: "assinatura", periodicidade: "anual", mesAnual: 6 });
+    expect(() => planejar({ ...nova, mesAnual: 0 }, comAssinaturas(), ctx)).toThrow(/mês da cobrança/);
+    expect(planejar({ ...nova, periodicidade: "mensal" }, comAssinaturas(), ctx).fixas?.salvar?.[0]?.mesAnual).toBe(0);
+  });
+
+  it("marca de uma vez as assinaturas do mês, pulando as que não cobram nele", () => {
+    const p = planejar({ acao: "fixas.pagarMes", mes: "2026-11", ids: ["streaming", "psplus"] }, comAssinaturas(), ctx);
+    const ls = p.lancamentos?.salvar ?? [];
+    expect(ls).toHaveLength(1);
+    expect(ls[0]).toMatchObject({ fixaId: "streaming", mesRef: "2026-11", data: "2026-11-12", valor: 5590, pagoPor: "b", deQuem: "casal" });
+    const marco = planejar({ acao: "fixas.pagarMes", mes: "2027-03", ids: ["streaming", "psplus"] }, comAssinaturas(), ctx);
+    expect(marco.lancamentos?.salvar?.map((l) => l.fixaId)).toEqual(["streaming", "psplus"]);
+  });
+
+  it("não paga de novo o que já foi pago no mês", () => {
+    const d = comAssinaturas();
+    const ja = planejar({ acao: "fixas.pagarMes", mes: "2026-11", ids: ["streaming"] }, d, ctx).lancamentos?.salvar ?? [];
+    expect(() => planejar({ acao: "fixas.pagarMes", mes: "2026-11", ids: ["streaming"] }, { ...d, lancamentos: ja }, ctx)).toThrow(/já estão pagas/);
   });
 });

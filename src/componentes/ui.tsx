@@ -97,8 +97,15 @@ export function Segmentado<T extends string>({
   rotulo: string;
   largo?: boolean;
 }) {
+  const indice = Math.max(0, opcoes.findIndex((o) => o.valor === valor));
   return (
     <div className={`segmentado ${largo ? "largo" : ""}`} role="group" aria-label={rotulo}>
+      {/* As opções têm a mesma largura: o polegar anda uma largura inteira por opção. */}
+      <span
+        className="segmentado-polegar"
+        aria-hidden="true"
+        style={{ width: `calc((100% - 4px) / ${opcoes.length})`, transform: `translateX(calc(2px + ${indice * 100}%))` }}
+      />
       {opcoes.map((o) => (
         <button key={o.valor} type="button" aria-pressed={o.valor === valor} onClick={() => aoMudar(o.valor)}>
           {o.rotulo}

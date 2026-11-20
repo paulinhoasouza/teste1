@@ -33,7 +33,7 @@ describe("registros do banco", () => {
     expect(registroParaCategoria(categoriaParaRegistro(c))).toEqual(c);
     const f: Fixa = {
       id: "f1", descricao: "Aluguel", tipo: "despesa", valor: 240000, dia: 10, categoria: "moradia",
-      pagoPor: "a", deQuem: "casal", parteA: 50, ativa: true, inicio: "2026-01", fim: "2027-06", bruto: 900000, regime: "outro", dependentes: 2, outrosDescontos: 18050,
+      pagoPor: "a", deQuem: "casal", parteA: 50, ativa: true, inicio: "2026-01", fim: "2027-06", bruto: 900000, regime: "outro", dependentes: 2, outrosDescontos: 18050, natureza: "assinatura", periodicidade: "anual", mesAnual: 3,
     };
     expect(registroParaFixa(fixaParaRegistro(f))).toEqual(f);
   });

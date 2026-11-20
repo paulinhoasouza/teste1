@@ -27,7 +27,12 @@ create table public.fixas (
   bruto numeric(12, 2) not null default 0 check (bruto >= 0),
   regime text not null default 'clt' check (regime in ('clt', 'outro')),
   dependentes integer not null default 0 check (dependentes between 0 and 20),
-  outros_descontos numeric(12, 2) not null default 0 check (outros_descontos >= 0)
+  outros_descontos numeric(12, 2) not null default 0 check (outros_descontos >= 0),
+  -- Conta da casa ou assinatura; cobrança mensal ou anual (no mês mes_anual).
+  natureza text not null default 'conta' check (natureza in ('conta', 'assinatura')),
+  periodicidade text not null default 'mensal' check (periodicidade in ('mensal', 'anual')),
+  mes_anual integer not null default 0 check (mes_anual between 0 and 12),
+  constraint fixas_anual_tem_mes check (periodicidade = 'mensal' or mes_anual between 1 and 12)
 );
 
 create table public.lancamentos (

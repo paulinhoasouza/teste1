@@ -48,7 +48,11 @@ export default function Inicio() {
     [casal, dados, mes, escopo, hoje],
   );
   const fx = useMemo(() => faixasDoMes(dados.lancamentos, mes), [dados.lancamentos, mes]);
-  const contas = useMemo(() => fixasDoMes(dados.fixas, dados.lancamentos, mes, hoje), [dados, mes, hoje]);
+  const todasDoMes = useMemo(() => fixasDoMes(dados.fixas, dados.lancamentos, mes, hoje), [dados, mes, hoje]);
+  // Assinaturas cobram sozinhas e têm tela própria; aqui entram só como um resumo.
+  const contas = todasDoMes.filter((c) => c.fixa.natureza !== "assinatura");
+  const assinaturasDoMes = todasDoMes.filter((c) => c.fixa.natureza === "assinatura");
+  const assinaturasPendentes = assinaturasDoMes.filter((c) => c.estado !== "paga");
   const saldo = useMemo(() => saldoCasal(dados.lancamentos, mes), [dados.lancamentos, mes]);
   const extrato = useMemo(() => extratoCasal(dados.lancamentos, mes), [dados.lancamentos, mes]);
   const ultimos = useMemo(() => lancamentosDoMes(dados.lancamentos, mes).slice(0, 5), [dados.lancamentos, mes]);
@@ -248,6 +252,19 @@ export default function Inicio() {
                 ))}
               </ul>
             )}
+            {assinaturasDoMes.length > 0 ? (
+              <Link href="/assinaturas" className="linha sem-midia" style={{ borderTop: "0.5px solid var(--separator)", minHeight: 52 }}>
+                <span className="linha-texto">
+                  <span className="linha-l1"><span>Assinaturas</span></span>
+                  <span className="linha-l2" style={{ display: "block" }}>
+                    {assinaturasPendentes.length === 0
+                      ? `${assinaturasDoMes.length} cobradas em ${nomeDoMesCurto(mes)}`
+                      : `${assinaturasPendentes.length} de ${assinaturasDoMes.length} ainda por cobrar`}
+                  </span>
+                </span>
+                <span className="num">{formatar(assinaturasDoMes.reduce((s, c) => s + c.valor, 0))}</span>
+              </Link>
+            ) : null}
           </Cartao>
 
           <Cartao className="ordem-4" titulo="Compras parceladas">

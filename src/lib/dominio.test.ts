@@ -5,6 +5,8 @@ import {
   expandirParcelas,
   extratoCasal,
   fixaNoMes,
+  fixaVigente,
+  valorMensal,
   parcelamentos,
   faixasDoMes,
   fixasDoMes,
@@ -52,6 +54,9 @@ function fixa(p: Partial<Fixa>): Fixa {
     regime: "clt",
     dependentes: 0,
     outrosDescontos: 0,
+    natureza: "conta",
+    periodicidade: "mensal",
+    mesAnual: 0,
     ...p,
   };
 }
@@ -324,5 +329,25 @@ describe("receita simulada pelo bruto", () => {
     expect(fixaNoMes(f, "2026-12")).toBe(true);
     expect(fixaNoMes(f, "2027-01")).toBe(false);
     expect(fixaNoMes(fixa({ inicio: "2027-01" }), "2026-12")).toBe(false);
+  });
+});
+
+describe("cobrança anual", () => {
+  const anual = fixa({ id: "psplus", valor: 42000, periodicidade: "anual", mesAnual: 3, natureza: "assinatura" });
+
+  it("só aparece nas contas do mês da cobrança", () => {
+    expect(fixaNoMes(anual, "2027-03")).toBe(true);
+    expect(fixaNoMes(anual, "2027-04")).toBe(false);
+    expect(fixasDoMes([anual], [], "2027-04", "2027-04-01")).toEqual([]);
+  });
+
+  it("vale um doze avos por mês no custo mensal", () => {
+    expect(valorMensal(anual)).toBe(3500);
+    expect(valorMensal(fixa({ valor: 5590 }))).toBe(5590);
+  });
+
+  it("está vigente o ano todo, enquanto não termina", () => {
+    expect(fixaVigente(anual, "2027-04")).toBe(true);
+    expect(fixaVigente({ ...anual, fim: "2027-01" }, "2027-04")).toBe(false);
   });
 });

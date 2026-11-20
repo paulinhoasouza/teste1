@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { Acao } from "@/lib/acoes";
 import { dataValida, mesDe, nomeDoMes } from "@/lib/datas";
 import { formatar } from "@/lib/dinheiro";
@@ -9,6 +9,7 @@ import { expandirParcelas, outra } from "@/lib/dominio";
 import { ehSimulada, simulacaoDa } from "@/lib/salario";
 import type { Dono, PessoaId, TipoLancamento } from "@/lib/tipos";
 import { CampoValor, EscolhaDono, EscolhaPessoa } from "./campos";
+import { Folha } from "./folha";
 import { useApp, type PedidoDeLancamento } from "./provedor";
 import { QuadroSimulacao } from "./simulacao";
 import { Segmentado } from "./ui";
@@ -21,27 +22,10 @@ const TIPOS: { valor: TipoLancamento; rotulo: string }[] = [
 
 export function FormLancamento() {
   const { pedidoLancamento, abrirLancamento } = useApp();
-  const ref = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (pedidoLancamento && !d.open) d.showModal();
-    if (!pedidoLancamento && d.open) d.close();
-  }, [pedidoLancamento]);
-
   return (
-    <dialog
-      ref={ref}
-      className="folha"
-      aria-labelledby="titulo-lancamento"
-      onClose={() => abrirLancamento(null)}
-      onClick={(e) => {
-        if (e.target === ref.current) abrirLancamento(null);
-      }}
-    >
+    <Folha aberta={!!pedidoLancamento} aoFechar={() => abrirLancamento(null)} rotuloId="titulo-lancamento">
       {pedidoLancamento ? <Corpo pedido={pedidoLancamento} fechar={() => abrirLancamento(null)} /> : null}
-    </dialog>
+    </Folha>
   );
 }
 

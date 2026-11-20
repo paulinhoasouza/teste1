@@ -1,6 +1,6 @@
 import "server-only";
 import { dataNoMes, diaDe, mesDe, somarMeses } from "../datas";
-import { expandirParcelas, saldoCasal } from "../dominio";
+import { expandirParcelas, fixaNoMes, saldoCasal } from "../dominio";
 import { CATEGORIAS_INICIAIS } from "../padroes";
 import { simular } from "../salario";
 import type { Dados, Dono, Fixa, Lancamento, PessoaId } from "../tipos";
@@ -16,13 +16,18 @@ const ORCAMENTOS: Record<string, number> = {
   saude: 30000,
 };
 
-const FIXAS: Fixa[] = [
+/** Contas, salários e assinaturas; a PS Plus anual cobra no mês anterior ao de hoje. */
+const fixasDeExemplo = (mesAtual: string): Fixa[] => [
   salario("sal-a", "Salário do Paulo", 900000, 5, "a"),
   salario("sal-b", "Salário da Giovana", 750000, 25, "b"),
   fixa("academia", "Academia", "despesa", 12990, 5, "saude", "a", "a"),
   fixa("aluguel", "Aluguel", "despesa", 240000, 10, "moradia", "a", "casal"),
   fixa("condominio", "Condomínio", "despesa", 52000, 10, "moradia", "a", "casal"),
-  fixa("streaming", "Streaming", "despesa", 5590, 12, "assinaturas", "b", "casal"),
+  assinatura("netflix", "Netflix", 4490, 12, "b", "casal"),
+  assinatura("spotify", "Spotify", 2790, 8, "a", "casal"),
+  assinatura("claude", "Claude", 11000, 18, "a", "a"),
+  assinatura("icloud", "iCloud+", 1490, 22, "b", "b"),
+  { ...assinatura("psplus", "PS Plus", 41990, 3, "a", "a"), periodicidade: "anual", mesAnual: Number(somarMeses(mesAtual, -1).slice(5, 7)) },
   fixa("energia", "Conta de luz", "despesa", 21480, 15, "contas-da-casa", "b", "casal"),
   fixa("pilates", "Pilates", "despesa", 28000, 18, "saude", "b", "b"),
   fixa("internet", "Internet", "despesa", 11990, 20, "contas-da-casa", "b", "casal"),
@@ -36,7 +41,12 @@ function fixa(
   return {
     id, descricao, tipo, valor, dia, categoria, pagoPor, deQuem, parteA: 50, ativa: true, inicio: "", fim: "",
     bruto: 0, regime: "clt", dependentes: 0, outrosDescontos: 0,
+    natureza: "conta", periodicidade: "mensal", mesAnual: 0,
   };
+}
+
+function assinatura(id: string, descricao: string, valor: number, dia: number, pagoPor: PessoaId, deQuem: Dono): Fixa {
+  return { ...fixa(id, descricao, "despesa", valor, dia, "assinaturas", pagoPor, deQuem), natureza: "assinatura" };
 }
 
 /** Salário informado pelo bruto, com a simulação de CLT e um plano de saúde descontado em folha. */
@@ -87,6 +97,8 @@ const GASTOS: Modelo[] = [
 
 export function dadosDeDemonstracao(hojeData: string): Dados {
   const mesAtual = mesDe(hojeData);
+  // As contas de exemplo começam junto com os lançamentos de exemplo, três meses atrás.
+  const FIXAS = fixasDeExemplo(mesAtual).map((f) => ({ ...f, inicio: somarMeses(mesAtual, -2) }));
   const lancamentos: Lancamento[] = [];
   let n = 0;
   const novo = (l: Omit<Lancamento, "id" | "criadoEm" | "criadoPor" | "parteA">): void => {
@@ -115,6 +127,7 @@ export function dadosDeDemonstracao(hojeData: string): Dados {
     const limite = recuo === 0 ? diaDe(hojeData) : 31;
 
     for (const f of FIXAS) {
+      if (!fixaNoMes(f, mes)) continue;
       // No mês atual, o que vence perto de hoje ainda está por pagar.
       if (f.dia > (recuo === 0 ? limite - 2 : 31)) continue;
       novo({

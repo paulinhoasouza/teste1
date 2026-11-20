@@ -12,11 +12,15 @@ import { fixaNoMes, fixasDoMes } from "@/lib/dominio";
 
 export default function Fixas() {
   const { dados, mes, hoje, nomes, abrirFixa } = useApp();
-  const contas = useMemo(() => fixasDoMes(dados.fixas, dados.lancamentos, mes, hoje), [dados, mes, hoje]);
+  // Assinaturas têm tela própria.
+  const contas = useMemo(
+    () => fixasDoMes(dados.fixas, dados.lancamentos, mes, hoje).filter((c) => c.fixa.natureza !== "assinatura"),
+    [dados, mes, hoje],
+  );
   const porPagar = (x: (typeof contas)[number]) => (x.estado === "paga" ? 1 : 0);
   const aPagar = contas.filter((c) => c.fixa.tipo === "despesa").sort((x, y) => porPagar(x) - porPagar(y));
   const aReceber = contas.filter((c) => c.fixa.tipo === "receita");
-  const fora = dados.fixas.filter((f) => !fixaNoMes(f, mes));
+  const fora = dados.fixas.filter((f) => f.natureza !== "assinatura" && !fixaNoMes(f, mes));
   // Quem ainda não tem salário cadastrado (receita fixa só dela) neste mês.
   const semSalario = (["a", "b"] as const).filter((p) => !aReceber.some((c) => c.fixa.deQuem === p));
 

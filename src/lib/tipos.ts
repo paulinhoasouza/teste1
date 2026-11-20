@@ -40,6 +40,8 @@ export interface Categoria {
 }
 
 export type Regime = "clt" | "outro";
+export type Natureza = "conta" | "assinatura";
+export type Periodicidade = "mensal" | "anual";
 
 export interface Fixa {
   id: string;
@@ -61,6 +63,11 @@ export interface Fixa {
   regime: Regime;
   dependentes: number;
   outrosDescontos: number;
+  /** Conta da casa ou assinatura (streaming, jogos, apps). */
+  natureza: Natureza;
+  periodicidade: Periodicidade;
+  /** Mês da cobrança (1 a 12) quando é anual; 0 quando é mensal. */
+  mesAnual: number;
 }
 
 export interface Config {

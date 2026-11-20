@@ -8,6 +8,9 @@ Controle financeiro pessoal para duas pessoas. Os dados ficam num banco Postgres
 - **Sobra do mês**: renda menos o que já foi gasto e menos as contas fixas que ainda vão vencer, com quanto dá para gastar por dia. Pode ser vista para os dois ou para cada um.
 - **Acerto do casal**: soma o que um pagou pelo outro e mostra quem deve a quem, com a conta aberta linha por linha. Registrar um acerto abate a dívida.
 - **Contas fixas**: aluguel, internet e salários cadastrados uma vez; a cada mês viram uma lista para marcar como paga ou recebida.
+- **Salário pelo bruto**: o app simula o líquido com INSS e IR de 2026 e mostra o valor como simulado até vocês confirmarem o líquido que caiu.
+- **Assinaturas**: streaming, jogos e apps, mensais ou anuais (como PS Plus), com o custo por mês e por ano e um botão para marcar todas as cobranças do mês.
+- **Relatório**: do casal ou de cada um, por mês ou por 3, 6 e 12 meses. Mostra renda, saídas, sobra e quanto foi guardado; para onde vai o dinheiro (contas fixas, assinaturas, parcelas e dia a dia); mês a mês; categorias comparadas com o período anterior; a divisão entre vocês; compromissos futuros e os maiores gastos.
 - **Orçamento por categoria**: opcional; avisa quando uma categoria passa do planejado.
 
 ## Onde os dados ficam
@@ -64,4 +67,4 @@ Para usar o banco localmente, copie `.env.example` para `.env.local` e preencha.
 
 ## Por dentro
 
-Next.js (App Router) e TypeScript. A lógica de dinheiro é pura e testada em `src/lib` (`dominio.ts`, `acoes.ts`, `registros.ts`); o banco é acessado pela API de dados do Supabase em `src/lib/servidor/banco.ts`; as telas ficam em `src/app/(app)`.
+Next.js (App Router) e TypeScript, com o visual no padrão Apple: fonte do sistema, modo escuro, barras translúcidas e folhas que sobem de baixo e podem ser arrastadas para fechar (molas da biblioteca Motion). A lógica de dinheiro é pura e testada em `src/lib` (`dominio.ts`, `acoes.ts`, `registros.ts`, `salario.ts`, `relatorio.ts`); o banco é acessado pela API de dados do Supabase em `src/lib/servidor/banco.ts`; as telas ficam em `src/app/(app)`.
