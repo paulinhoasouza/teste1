@@ -259,6 +259,20 @@ export function descrever(acao: unknown, antes: Dados, patch: Patch, base: Base)
       if (mudancas.length === 0) return null;
       return nova("ajustes.editar", "alterou os ajustes do casal", mudancas, "");
     }
+
+    case "fluxo.ajustar": {
+      const c = patch.config;
+      if (!c) return null;
+      const v = antes.config;
+      const comeco = (m: string) => (m ? nomeDoMes(m) : "Automático, desde que começaram a usar");
+      const mudancas = [
+        ...(v.fluxoInicio !== c.fluxoInicio ? [{ campo: "Começa em", de: comeco(v.fluxoInicio), para: comeco(c.fluxoInicio) }] : []),
+        ...(v.saldoInicialA !== c.saldoInicialA ? [{ campo: `Saldo inicial de ${nomes.a}`, de: formatar(v.saldoInicialA), para: formatar(c.saldoInicialA) }] : []),
+        ...(v.saldoInicialB !== c.saldoInicialB ? [{ campo: `Saldo inicial de ${nomes.b}`, de: formatar(v.saldoInicialB), para: formatar(c.saldoInicialB) }] : []),
+      ];
+      if (mudancas.length === 0) return null;
+      return nova("ajustes.editar", "ajustou o fluxo de caixa", mudancas, "");
+    }
   }
   return null;
 }

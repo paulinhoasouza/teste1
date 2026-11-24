@@ -158,7 +158,7 @@ export function dadosDeDemonstracao(hojeData: string): Dados {
 
   const dados: Dados = {
     demo: true,
-    config: { nomeA: "Paulo", nomeB: "Giovana", corA: "azul", corB: "laranja", parteAPadrao: 50 },
+    config: { nomeA: "Paulo", nomeB: "Giovana", corA: "azul", corB: "laranja", parteAPadrao: 50, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 },
     categorias: CATEGORIAS_INICIAIS.map((c) => ({ ...c, orcamento: ORCAMENTOS[c.id] ?? 0 })),
     fixas: FIXAS,
     lancamentos,

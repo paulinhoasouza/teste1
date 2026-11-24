@@ -6,8 +6,9 @@ import { Titulo } from "@/componentes/casca";
 import { LinhaConta, LinhaLancamento, LinhaParcelamento } from "@/componentes/linhas";
 import { useApp } from "@/componentes/provedor";
 import { Avatar, Cartao, Segmentado, Trilho, Valor, type Segmento } from "@/componentes/ui";
-import { diasNoMes, mesDe, nomeDoMes, nomeDoMesCurto } from "@/lib/datas";
+import { diasNoMes, mesDe, nomeDoMes, nomeDoMesCurto, somarMeses } from "@/lib/datas";
 import { formatar } from "@/lib/dinheiro";
+import { fluxoDeCaixa } from "@/lib/fluxo";
 import {
   extratoCasal, faixasDoMes, fixasDoMes, lancamentosDoMes, parcelamentos, resumoMes, saldoCasal,
   type FixaDoMes, type Resumo,
@@ -41,6 +42,11 @@ export default function Inicio() {
   const { dados, mes, hoje, nomes, quem, abrirLancamento } = useApp();
   const [escopo, setEscopo] = useState<Dono>("casal");
   const mesAtual = mesDe(hoje);
+  // Quanto passa para o mês que vem: a sobra de agora somada ao que veio dos meses anteriores.
+  const passa = useMemo(
+    () => fluxoDeCaixa(dados, escopo, hoje, 0).meses.find((m) => m.mes === mesAtual)?.saldoFinal ?? null,
+    [dados, escopo, hoje, mesAtual],
+  );
 
   const casal = useMemo(() => resumoMes(dados, mes, "casal", hoje), [dados, mes, hoje]);
   const r = useMemo(
@@ -121,6 +127,15 @@ export default function Inicio() {
                     <Link className="ligacao" href="/fixas">Confirmar</Link>
                   </span>
                 </p>
+              ) : null}
+              {mes === mesAtual && passa !== null ? (
+                <Link href="/fluxo" className="passa-adiante">
+                  <span>
+                    Passa para {nomeDoMesCurto(somarMeses(mesAtual, 1))}{" "}
+                    <strong className={`num ${passa < 0 ? "negativo" : ""}`}>{formatar(passa)}</strong>
+                  </span>
+                  <span className="ligacao">Fluxo de caixa →</span>
+                </Link>
               ) : null}
             </div>
             <div className="sobra-trilho">

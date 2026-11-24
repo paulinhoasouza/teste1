@@ -86,6 +86,14 @@ export const esquemaAcao = z.discriminatedUnion("acao", [
     corB: cor,
     parteAPadrao: parte,
   }),
+  z.object({
+    acao: z.literal("fluxo.ajustar"),
+    /** Vazio volta ao automático (quando começaram a usar o app). */
+    inicio: z.string().regex(/^(\d{4}-(0[1-9]|1[0-2]))?$/),
+    /** Pode ser negativo: começar devendo também é um ponto de partida. */
+    saldoA: z.number().int().min(-99_999_999_99).max(99_999_999_99),
+    saldoB: z.number().int().min(-99_999_999_99).max(99_999_999_99),
+  }),
 ]);
 
 export type Acao = z.infer<typeof esquemaAcao>;
@@ -296,7 +304,14 @@ export function planejar(entrada: unknown, dados: Dados, ctx: Contexto): Patch {
     case "config.salvar": {
       const { acao: _a, ...config } = acao;
       if (config.corA === config.corB) throw new ErroDeAcao("Escolham uma cor diferente para cada um.");
-      return { config };
+      // Os ajustes do fluxo de caixa ficam como estão.
+      return { config: { ...dados.config, ...config } };
+    }
+
+    case "fluxo.ajustar": {
+      return {
+        config: { ...dados.config, fluxoInicio: acao.inicio, saldoInicialA: acao.saldoA, saldoInicialB: acao.saldoB },
+      };
     }
   }
 }

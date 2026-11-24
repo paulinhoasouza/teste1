@@ -76,6 +76,11 @@ export interface Config {
   corA: CorPessoa;
   corB: CorPessoa;
   parteAPadrao: number;
+  /** Mês (yyyy-mm) em que o fluxo de caixa começa; vazio = quando começaram a usar o app. */
+  fluxoInicio: string;
+  /** Quanto cada um já tinha guardado antes do começo do fluxo, em centavos. */
+  saldoInicialA: number;
+  saldoInicialB: number;
 }
 
 /** Foto ou PDF anexado a um lançamento. O arquivo em si é buscado só quando alguém abre. */

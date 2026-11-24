@@ -7,6 +7,9 @@ export const CONFIG_INICIAL: Config = {
   corA: "azul",
   corB: "laranja",
   parteAPadrao: 50,
+  fluxoInicio: "",
+  saldoInicialA: 0,
+  saldoInicialB: 0,
 };
 
 const despesas = [

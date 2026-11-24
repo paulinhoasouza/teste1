@@ -18,7 +18,7 @@ function fixa(p: Partial<Fixa> = {}): Fixa {
 function dados(p: Partial<Dados> = {}): Dados {
   return {
     demo: false,
-    config: { nomeA: "Paulo", nomeB: "Giovana", corA: "azul", corB: "laranja", parteAPadrao: 50 },
+    config: { nomeA: "Paulo", nomeB: "Giovana", corA: "azul", corB: "laranja", parteAPadrao: 50, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 },
     categorias: [
       { id: "mercado", nome: "Mercado", tipo: "despesa", orcamento: 140000, ordem: 1, arquivada: false },
       { id: "compras", nome: "Compras", tipo: "despesa", orcamento: 0, ordem: 2, arquivada: false },
@@ -167,13 +167,23 @@ describe("ajustes, comprovantes e acesso", () => {
   });
 
   it("ajustes do casal", () => {
-    const a = fazer({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Gi", corA: "azul", corB: "rosa", parteAPadrao: 60 }, dados())!;
+    const a = fazer({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Gi", corA: "azul", corB: "rosa", parteAPadrao: 60, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 }, dados())!;
     expect(a.resumo).toBe("alterou os ajustes do casal");
     expect(a.mudancas).toEqual([
       { campo: "Nome", de: "Giovana", para: "Gi" },
       { campo: "Cor de Giovana", de: "Laranja", para: "Rosa" },
       { campo: "Divisão padrão", de: "Paulo 50%, Giovana 50%", para: "Paulo 60%, Gi 40%" },
     ]);
+  });
+
+  it("ajustes do fluxo de caixa", () => {
+    const a = fazer({ acao: "fluxo.ajustar", inicio: "2026-11", saldoA: 300000, saldoB: 0 }, dados())!;
+    expect(a).toMatchObject({ tipo: "ajustes.editar", resumo: "ajustou o fluxo de caixa" });
+    expect(a.mudancas).toEqual([
+      { campo: "Começa em", de: "Automático, desde que começaram a usar", para: "novembro de 2026" },
+      { campo: "Saldo inicial de Paulo", de: "R$ 0,00", para: "R$ 3.000,00" },
+    ]);
+    expect(fazer({ acao: "fluxo.ajustar", inicio: "", saldoA: 0, saldoB: 0 }, dados())).toBeNull();
   });
 
   it("comprovante aponta o lançamento", () => {

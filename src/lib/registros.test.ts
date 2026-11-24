@@ -39,7 +39,7 @@ describe("registros do banco", () => {
   });
 
   it("config vai e volta numa linha só, e nunca devolve duas cores iguais", () => {
-    const c = { nomeA: "Paulo", nomeB: "Giovana", corA: "verde" as const, corB: "rosa" as const, parteAPadrao: 55 };
+    const c = { nomeA: "Paulo", nomeB: "Giovana", corA: "verde" as const, corB: "rosa" as const, parteAPadrao: 55, fluxoInicio: "2026-11", saldoInicialA: 1234567, saldoInicialB: -5000 };
     expect(configParaRegistro(c).id).toBe(1);
     expect(registroParaConfig(configParaRegistro(c))).toEqual(c);
     expect(registroParaConfig({ cor_a: "laranja", cor_b: "laranja" }).corB).toBe("azul");

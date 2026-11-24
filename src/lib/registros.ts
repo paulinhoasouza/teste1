@@ -109,7 +109,10 @@ const cor = (v: unknown, padrao: CorPessoa): CorPessoa =>
 
 /** A configuração é uma linha só, de id 1. */
 export function configParaRegistro(c: Config): Registro {
-  return { id: 1, nome_a: c.nomeA, nome_b: c.nomeB, cor_a: c.corA, cor_b: c.corB, parte_a_padrao: c.parteAPadrao };
+  return {
+    id: 1, nome_a: c.nomeA, nome_b: c.nomeB, cor_a: c.corA, cor_b: c.corB, parte_a_padrao: c.parteAPadrao,
+    fluxo_inicio: c.fluxoInicio, saldo_inicial_a: paraReais(c.saldoInicialA), saldo_inicial_b: paraReais(c.saldoInicialB),
+  };
 }
 
 export function registroParaConfig(r: Registro): Config {
@@ -122,6 +125,9 @@ export function registroParaConfig(r: Registro): Config {
     corA,
     corB,
     parteAPadrao: inteiro(r.parte_a_padrao, 50, 0, 100),
+    fluxoInicio: /^\d{4}-(0[1-9]|1[0-2])$/.test(txt(r.fluxo_inicio)) ? txt(r.fluxo_inicio) : "",
+    saldoInicialA: deReais(r.saldo_inicial_a),
+    saldoInicialB: deReais(r.saldo_inicial_b),
   };
 }
 

@@ -157,6 +157,12 @@ grant select, insert on public.atividades to anon;
 create policy app_com_segredo on public.atividades for all to anon
   using ((select privado.pedido_autorizado())) with check ((select privado.pedido_autorizado()));
 
+-- Fluxo de caixa: de onde ele começa e quanto cada um já tinha guardado antes.
+alter table public.config
+  add column if not exists fluxo_inicio text not null default '' check (fluxo_inicio = '' or fluxo_inicio ~ '^\d{4}-(0[1-9]|1[0-2])$'),
+  add column if not exists saldo_inicial_a numeric(12,2) not null default 0,
+  add column if not exists saldo_inicial_b numeric(12,2) not null default 0;
+
 insert into public.config (id, nome_a, nome_b) values (1, 'Paulo', 'Giovana');
 
 insert into public.categorias (id, nome, tipo, ordem) values

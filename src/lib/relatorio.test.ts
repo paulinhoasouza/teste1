@@ -49,7 +49,7 @@ function cenario(): Dados {
   ];
   return {
     demo: false,
-    config: { nomeA: "Paulo", nomeB: "Giovana", corA: "azul", corB: "laranja", parteAPadrao: 50 },
+    config: { nomeA: "Paulo", nomeB: "Giovana", corA: "azul", corB: "laranja", parteAPadrao: 50, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 },
     categorias: cats,
     fixas,
     lancamentos,

@@ -66,7 +66,7 @@ function dados(p: Partial<Dados>): Dados {
     demo: false,
     comprovantes: [],
     atividades: [],
-    config: { nomeA: "Paulo", nomeB: "Bia", corA: "azul", corB: "laranja", parteAPadrao: 50 },
+    config: { nomeA: "Paulo", nomeB: "Bia", corA: "azul", corB: "laranja", parteAPadrao: 50, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 },
     categorias: [
       { id: "mercado", nome: "Mercado", tipo: "despesa", orcamento: 80000, ordem: 1, arquivada: false },
       { id: "lazer", nome: "Lazer", tipo: "despesa", orcamento: 0, ordem: 2, arquivada: false },

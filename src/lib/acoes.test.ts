@@ -11,7 +11,7 @@ function base(p: Partial<Dados> = {}): Dados {
     demo: false,
     comprovantes: [],
     atividades: [],
-    config: { nomeA: "Paulo", nomeB: "Bia", corA: "azul", corB: "laranja", parteAPadrao: 50 },
+    config: { nomeA: "Paulo", nomeB: "Bia", corA: "azul", corB: "laranja", parteAPadrao: 50, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 },
     categorias: [
       { id: "mercado", nome: "Mercado", tipo: "despesa", orcamento: 0, ordem: 1, arquivada: false },
     ],
@@ -105,6 +105,15 @@ describe("planejar", () => {
     expect(aplicar(d, todas).comprovantes).toEqual([]);
   });
 
+  it("salvar os ajustes do casal não apaga os do fluxo de caixa; ajustar o fluxo não mexe no resto", () => {
+    const d = base({ config: { ...base().config, fluxoInicio: "2026-11", saldoInicialA: 300000, saldoInicialB: 0 } });
+    const p = planejar({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "rosa", parteAPadrao: 60 }, d, ctx);
+    expect(p.config).toMatchObject({ corA: "verde", parteAPadrao: 60, fluxoInicio: "2026-11", saldoInicialA: 300000 });
+    const f = planejar({ acao: "fluxo.ajustar", inicio: "", saldoA: -5000, saldoB: 120000 }, d, ctx);
+    expect(f.config).toMatchObject({ nomeB: "Bia", corA: "azul", fluxoInicio: "", saldoInicialA: -5000, saldoInicialB: 120000 });
+    expect(() => planejar({ acao: "fluxo.ajustar", inicio: "2026-13", saldoA: 0, saldoB: 0 }, d, ctx)).toThrow(ErroDeAcao);
+  });
+
   it("cria categoria com id legível e único", () => {
     const d = base();
     const p = planejar({ acao: "categoria.salvar", nome: "Mercado", tipo: "despesa", orcamento: 50000 }, d, ctx);
@@ -123,9 +132,9 @@ describe("planejar", () => {
   });
 
   it("salva os nomes e a divisão padrão", () => {
-    const p = planejar({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "rosa", parteAPadrao: 60 }, base(), ctx);
-    expect(p.config).toEqual({ nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "rosa", parteAPadrao: 60 });
-    expect(() => planejar({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "verde", parteAPadrao: 60 }, base(), ctx)).toThrow(/cor/);
+    const p = planejar({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "rosa", parteAPadrao: 60, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 }, base(), ctx);
+    expect(p.config).toEqual({ nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "rosa", parteAPadrao: 60, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 });
+    expect(() => planejar({ acao: "config.salvar", nomeA: "Paulo", nomeB: "Bia", corA: "verde", corB: "verde", parteAPadrao: 60, fluxoInicio: "", saldoInicialA: 0, saldoInicialB: 0 }, base(), ctx)).toThrow(/cor/);
   });
 });
 

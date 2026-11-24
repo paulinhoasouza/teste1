@@ -2,7 +2,7 @@
 
 import {
   CalendarCheck, CalendarPlus, ChartColumn, Check, ChevronLeft, ChevronRight, Ellipsis, History, House, List, LogOut, Plus, Repeat,
-  Search, Settings, Undo2, Users, X,
+  Search, Settings, TrendingUp, Undo2, Users, X,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -30,6 +30,7 @@ interface Destino {
 const VISAO: Destino[] = [
   { href: "/", rotulo: "Início", Icone: House, cor: "#0071e3" },
   { href: "/relatorio", rotulo: "Relatório", Icone: ChartColumn, cor: "#248a3d" },
+  { href: "/fluxo", rotulo: "Fluxo de caixa", Icone: TrendingUp, cor: "#007e9a" },
   { href: "/casal", rotulo: "Casal", Icone: Users, cor: "#e3175e" },
 ];
 const ORGANIZAR: Destino[] = [
@@ -41,9 +42,9 @@ const AJUSTES: Destino = { href: "/ajustes", rotulo: "Ajustes", Icone: Settings,
 const ATIVIDADE: Destino = { href: "/atividade", rotulo: "Atividade", Icone: History, cor: "#5e5ce6" };
 const TODOS = [...VISAO, ...ORGANIZAR, ATIVIDADE, AJUSTES];
 /** Ordem da barra de cima: o dia a dia primeiro, depois o que se organiza uma vez. */
-const BARRA = [VISAO[0]!, ORGANIZAR[0]!, VISAO[1]!, VISAO[2]!, ORGANIZAR[1]!, ORGANIZAR[2]!];
+const BARRA = [VISAO[0]!, ORGANIZAR[0]!, VISAO[1]!, { ...VISAO[2]!, rotulo: "Fluxo" }, VISAO[3]!, ORGANIZAR[1]!, ORGANIZAR[2]!];
 /** No celular, o que não cabe na barra de abas vai para "Mais". */
-const NO_MAIS = ["/casal", "/fixas", "/assinaturas", "/atividade", "/ajustes"];
+const NO_MAIS = ["/fluxo", "/casal", "/fixas", "/assinaturas", "/atividade", "/ajustes"];
 
 export function Casca({ children }: { children: ReactNode }) {
   const { dados, nomes, mes, hoje, quem, setMes, abrirLancamento, abrirFixa } = useApp();
