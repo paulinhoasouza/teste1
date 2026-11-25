@@ -1,0 +1,7 @@
+{
+  "agent": "orquestrador",
+  "effortLevel": "xhigh",
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "40"
+  }
+}
